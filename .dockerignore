@@ -1,0 +1,11 @@
+.git
+.gitignore
+.vscode
+*.md
+screenshots/
+deploy/
+.github/
+*.db
+*.sqlite
+*.sqlite3
+data/

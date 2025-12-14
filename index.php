@@ -1,6 +1,6 @@
 <?php
 // --- CONFIGURATION START ---
-$configured = true;
+$configured = false;
 $dbType = 'sqlite'; // Database type: 'sqlite', 'mysql', or 'pgsql'
 $dbHost = 'localhost';
 $dbName = 'url_shortener';
@@ -9,9 +9,9 @@ $dbPass = '';
 $dbPort = ''; // Optional: MySQL default 3306, PostgreSQL default 5432
 
 // Customize App Appearance
-$appTitle = 'URL Shortener'; // Nama Aplikasi
-$appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)
-$appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)
+$appTitle = 'URL Shortener'; // Aplication Name
+$appLogo = 'logo.png';       // logo name (Should in same folder)
+$appFavicon = 'favicon.ico'; // file favicon Name (Should in same folder)
 $appLang = 'en';             // Language: 'en' or 'id'
 
 // Database Optimization Settings
