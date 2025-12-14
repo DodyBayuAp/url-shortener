@@ -1,7 +1,7 @@
 <?php
 // --- CONFIGURATION START ---
 $configured = true;
-$dbType = 'mysql';
+$dbType = 'sqlite';
 $dbHost = 'localhost';
 $dbName = 'url_shortener';
 $dbUser = 'root';
@@ -213,6 +213,7 @@ try {
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
             password TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0,
             force_change_password INTEGER DEFAULT 0
         );");
     } else {
@@ -220,6 +221,7 @@ try {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username VARCHAR(50) NOT NULL UNIQUE,
             password TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0,
             force_change_password INTEGER DEFAULT 0
         );");
     }
@@ -230,6 +232,13 @@ try {
         $pdo->exec("ALTER TABLE users ADD COLUMN force_change_password INTEGER DEFAULT 0");
     } catch (Exception $e) {
         // Ignore if column already exists
+    }
+
+    // Migration: Add is_admin if not exists
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0");
+        // Ensure original admin is admin
+        $pdo->exec("UPDATE users SET is_admin = 1 WHERE username = 'admin'");
     } catch (Exception $e) {
         // Ignore if column already exists
     }
@@ -281,8 +290,8 @@ try {
     if ($stmt->fetchColumn() == 0) {
         // Default password: admin
         $hashedPassword = password_hash('admin', PASSWORD_BCRYPT);
-        // Force change password = 1
-        $pdo->prepare("INSERT INTO users (username, password, force_change_password) VALUES (?, ?, 1)")->execute(['admin', $hashedPassword]);
+        // Force change password = 1, is_admin = 1
+        $pdo->prepare("INSERT INTO users (username, password, force_change_password, is_admin) VALUES (?, ?, 1, 1)")->execute(['admin', $hashedPassword]);
     }
 } catch (PDOException $e) {
     renderErrorPage("Gagal Koneksi Database", "Tidak dapat terhubung ke database. Pastikan konfigurasi benar.<br>Error: " . htmlspecialchars($e->getMessage()), true);
@@ -414,6 +423,7 @@ if ($uri === BASE_PATH . '/login') {
             $_SESSION['logged_in'] = true;
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_id'] = $user['id'];
+            $_SESSION['is_admin'] = $user['is_admin'] ?? 0;
 
             // Cek force_change_password
             if (isset($user['force_change_password']) && $user['force_change_password'] == 1) {
@@ -537,7 +547,7 @@ if ($uri === BASE_PATH . '/register') {
                 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
                 $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
                 if ($stmt->execute([$username, $hashedPassword])) {
-                    if (isset($_SESSION['username']) && $_SESSION['username'] === 'admin') {
+                    if (isset($_SESSION['is_admin']) && $_SESSION['is_admin']) {
                          header('Location: ' . BASE_PATH . '/users');
                     } else {
                          header('Location: ' . BASE_PATH . '/login');
@@ -939,11 +949,13 @@ if ($uri === BASE_PATH . '/admin') {
     echo "</div>";
     
     // Add Manage Users Link for Admin
-    if ($username === 'admin') {
+    if (!empty($_SESSION['is_admin'])) {
         echo "<div class='navbar-item'>";
         echo "<a class='button is-warning is-small' href='" . BASE_PATH . "/users'>";
         echo "<span class='icon is-small'><i class='fas fa-users-cog'></i></span>";
         echo "<span>Kelola User</span>";
+        echo "</a>";
+        echo "</div>";
         echo "</a>";
         echo "</div>";
     }
@@ -1210,7 +1222,7 @@ if ($uri === BASE_PATH . '/admin') {
 
 // 6. User Management (Admin Only)
 if ($uri === BASE_PATH . '/users') {
-    if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in'] || $_SESSION['username'] !== 'admin') {
+    if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in'] || empty($_SESSION['is_admin'])) {
         header('Location: ' . BASE_PATH . '/admin');
         exit;
     }
@@ -1229,7 +1241,7 @@ if ($uri === BASE_PATH . '/users') {
                 if ($targetId == $_SESSION['user_id']) {
                     $message = "<div class='notification is-danger'>Tidak dapat menghapus akun sendiri.</div>";
                 } else {
-                    $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
                     if ($stmt->execute([$targetId])) {
                          $message = "<div class='notification is-success'>User berhasil dihapus.</div>";
                     }
@@ -1244,6 +1256,20 @@ if ($uri === BASE_PATH . '/users') {
                     $stmt = $pdo->prepare("UPDATE users SET password = ?, force_change_password = 1 WHERE id = ?");
                     if ($stmt->execute([$hashed, $targetId])) {
                          $message = "<div class='notification is-success'>Password user berhasil direset. User wajib menggantinya saat login.</div>";
+                    }
+                }
+            } elseif ($action === 'promote') {
+                $stmt = $pdo->prepare("UPDATE users SET is_admin = 1 WHERE id = ?");
+                if ($stmt->execute([$targetId])) {
+                     $message = "<div class='notification is-success'>User berhasil dijadikan Admin.</div>";
+                }
+            } elseif ($action === 'demote') {
+                if ($targetId == $_SESSION['user_id']) {
+                    $message = "<div class='notification is-danger'>Tidak dapat mencabut akses admin sendiri.</div>";
+                } else {
+                    $stmt = $pdo->prepare("UPDATE users SET is_admin = 0 WHERE id = ?");
+                    if ($stmt->execute([$targetId])) {
+                         $message = "<div class='notification is-success'>Akses Admin user dicabut.</div>";
                     }
                 }
             }
@@ -1275,13 +1301,24 @@ if ($uri === BASE_PATH . '/users') {
         echo "<tr>";
         echo "<td>{$u['id']}</td>";
         echo "<td>" . htmlspecialchars($u['username']) . "</td>";
-        echo "<td>" . ($u['force_change_password'] ? "<span class='tag is-warning'>Wajib Ganti Pass</span>" : "<span class='tag is-success'>Aktif</span>") . "</td>";
+        echo "<td>";
+        if ($u['is_admin']) echo "<span class='tag is-primary mr-1'>Admin</span>";
+        echo ($u['force_change_password'] ? "<span class='tag is-warning'>Wajib Ganti Pass</span>" : "<span class='tag is-success'>Aktif</span>");
+        echo "</td>";
         echo "<td>";
         echo "<div class='buttons are-small'>";
-        if ($u['username'] !== 'admin') {
-             echo "<button class='button is-danger' onclick='if(confirm(\"Hapus user ini?\")) { submitForm(\"delete\", \"{$u['id']}\"); }'><i class='fas fa-trash'></i> Hapus</button>";
+        
+        // Promotion/Demotion Logic
+        if ($u['id'] != $_SESSION['user_id']) { // Check ID instead of username
+            if ($u['is_admin']) {
+                echo "<button class='button is-dark' onclick='if(confirm(\"Cabut akses admin user ini?\")) { submitForm(\"demote\", \"{$u['id']}\"); }' title='Demote'><i class='fas fa-user-minus'></i></button>";
+            } else {
+                echo "<button class='button is-info' onclick='if(confirm(\"Jadikan user ini admin?\")) { submitForm(\"promote\", \"{$u['id']}\"); }' title='Promote'><i class='fas fa-user-plus'></i></button>";
+            }
+            echo "<button class='button is-danger' onclick='if(confirm(\"Hapus user ini?\")) { submitForm(\"delete\", \"{$u['id']}\"); }' title='Hapus'><i class='fas fa-trash'></i></button>";
         }
-        echo "<button class='button is-warning' onclick='openResetModal(\"{$u['id']}\", \"{$u['username']}\")'><i class='fas fa-key'></i> Reset Pass</button>";
+
+        echo "<button class='button is-warning' onclick='openResetModal(\"{$u['id']}\", \"{$u['username']}\")' title='Reset Password'><i class='fas fa-key'></i></button>";
         echo "</div>";
         echo "</td>";
         echo "</tr>";

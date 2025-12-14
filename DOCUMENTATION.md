@@ -7,6 +7,10 @@ This document provides a deep dive into the architecture, database schema, and c
 The application is built as a **Single File Application (`index.php`)**. This design choice simplifies deployment and maintenance.
 
 *   **Frontend**: HTML5, CSS3 (Bulma Framework), JavaScript (Chart.js for analytics, QRCode.js).
+*   **Manajemen User**: Admin dapat mengelola pengguna lain (tambah, hapus, reset password, promote/demote admin).
+*   **Statistik Lengkap**: Melacak jumlah klik, referer, lokasi, browser, dan device.
+*   **QR Code**: Generate QR Code untuk setiap short link.
+*   **Responsif**: Tampilan mobile-friendly menggunakan Bulma CSS.
 *   **Backend**: Native PHP (No external framework dependencies).
 *   **Database**: PDO Abstraction Layer supporting MySQL and SQLite.
 
