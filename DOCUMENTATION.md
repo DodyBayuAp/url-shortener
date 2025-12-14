@@ -7,6 +7,19 @@ This document provides a deep dive into the architecture, database schema, and c
 The application is built as a **Single File Application (`index.php`)**. This design choice simplifies deployment and maintenance.
 
 *   **Frontend**: HTML5, CSS3 (Bulma Framework), JavaScript (Chart.js for analytics, QRCode.js).
+3.  **Konfigurasi Tambahan (Opsi)**
+    Anda dapat mengubah judul, logo, dan favicon dengan mengedit variabel konfigurasi di bagian atas `index.php`:
+    ```php
+    // Customize App Appearance
+    $appTitle = 'URL Shortener';
+    $appLogo = 'logo.png';
+    $appFavicon = 'favicon.ico';
+    ```
+
+## Penggunaan
+**Login Default**:
+*   **Username**: `admin`
+*   **Password**: `admin` (Anda akan diminta menggantinya saat login pertama)
 *   **Manajemen User**: Admin dapat mengelola pengguna lain (tambah, hapus, reset password, promote/demote admin).
 *   **Statistik Lengkap**: Melacak jumlah klik, referer, lokasi, browser, dan device.
 *   **QR Code**: Generate QR Code untuk setiap short link.
@@ -78,6 +91,15 @@ Creates a random alphanumeric string for the short code. Default length is 6 cha
 *   **Input Validation**: URLs are validated using `filter_var()`. Outputs are escaped using `htmlspecialchars()` to prevent XSS.
 *   **Password Hashing**: Uses `password_hash()` with `PASSWORD_BCRYPT`.
 
+3. **Kustomisasi**:
+    - Ubah file **logo.png** dengan logo pilihan Anda.
+    - Ubah file **favicon.ico** untuk ikon tab browser.
+    - Edit `index.php` untuk mengubah judul aplikasi (`$appTitle`).
+
+## Struktur File
+- `index.php`: File utama aplikasi (Core Logic, UI, Database).
+- `logo.png`: Logo aplikasi.
+
 ## 🎨 Customization
 
 ### Changing the Logo
@@ -98,6 +120,19 @@ Edit these values in `index.php` to match your brand colors.
 The application uses a **Self-Configuring** mechanism to stay in a single file.
 When you run the Setup Wizard:
 1.  The script reads its own source code (`__FILE__`).
+### Konfigurasi Database & Tampilan
+Di bagian atas file `index.php`, terdapat blok konfigurasi:
+
+```php
+// --- CONFIGURATION START ---
+$configured = true;
+$dbType = 'sqlite'; // atau 'mysql'
+...
+// Customize App Appearance
+$appTitle = 'URL Shortener';
+$appLogo = 'logo.png';
+$appFavicon = 'favicon.ico';
+```
 2.  It replaces the configuration block at the top of the file with your input.
 3.  It saves the modified content back to `index.php`.
 
@@ -110,4 +145,3 @@ To re-run the Setup Wizard (e.g., to switch databases):
 
 ### Switching Databases
 Follow the "Resetting Configuration" steps above, then choose your new database type in the Wizard.
-

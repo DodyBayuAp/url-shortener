@@ -6,6 +6,10 @@ $dbHost = 'localhost';
 $dbName = 'url_shortener';
 $dbUser = 'root';
 $dbPass = '';
+// Customize App Appearance
+$appTitle = 'Direktorat SMP - URL Shortener'; // Nama Aplikasi
+$appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)
+$appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)
 // --- CONFIGURATION END ---
 
 // Helper for Error Pages (Early Declaration)
@@ -127,7 +131,9 @@ $dbPass = '';
 
     // Render Setup Form
     echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Setup Wizard</title>";
-    echo "<link rel='icon' href='" . BASE_PATH . "/favicon.ico' type='image/x-icon'>"; 
+    if (file_exists(__DIR__ . '/' . $appFavicon)) {
+        echo "<link rel='icon' href='" . BASE_PATH . "/$appFavicon' type='image/x-icon'>"; 
+    }
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
     echo "</head><body>";
@@ -135,8 +141,10 @@ $dbPass = '';
     echo "<div class='hero-body'><div class='container'><div class='columns is-centered'><div class='column is-5'>";
     echo "<div class='box'>";
     echo "<div class='has-text-centered mb-5'>";
-    echo "<img src='tutwuri.png' alt='Logo' style='height:80px' onerror=\"this.style.display='none'\">";
-    echo "<h1 class='title is-4 mt-3'>Aplikasi URL Shortener</h1><p class='subtitle is-6'>Setup Konfigurasi Awal</p>";
+    if (file_exists(__DIR__ . '/' . $appLogo)) {
+        echo "<img src='$appLogo' alt='Logo' style='height:80px'>";
+    }
+    echo "<h1 class='title is-4 mt-3'>$appTitle</h1><p class='subtitle is-6'>Setup Konfigurasi Awal</p>";
     echo "</div>";
     
     if ($error) echo "<div class='notification is-danger'>$error</div>";
@@ -365,8 +373,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // Helper untuk render view sederhana
 function renderHeader($title) {
+    global $appFavicon; // Access global config
     echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>$title</title>";
-    echo "<link rel='icon' href='" . BASE_PATH . "/favicon.ico' type='image/x-icon'>"; // Added Favicon
+    if (file_exists(__DIR__ . '/' . $appFavicon)) {
+        echo "<link rel='icon' href='" . BASE_PATH . "/$appFavicon' type='image/x-icon'>";
+    }
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
     echo "<script src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'></script>";
@@ -446,7 +457,9 @@ if ($uri === BASE_PATH . '/login') {
     echo "<div class='columns is-centered'>";
     echo "<div class='column is-5-tablet is-4-desktop is-3-widescreen'>";
     echo "<div class='box has-text-centered'>";
-    echo "<figure class='image is-128x128 is-inline-block mb-4'><img src='tutwuri.png' alt='Logo Tut Wuri Handayani'></figure>";
+    if (file_exists(__DIR__ . '/' . $appLogo)) {
+        echo "<figure class='image is-128x128 is-inline-block mb-4'><img src='$appLogo' alt='Logo Details'></figure>";
+    }
     echo "<h1 class='title has-text-centered'>Login</h1>";
     if (isset($error)) echo "<div class='notification is-danger is-light'>$error</div>";
     echo "<form method='post'>";
@@ -924,15 +937,17 @@ if ($uri === BASE_PATH . '/admin') {
     }
 
     // Tampilan Dashboard
-    renderHeader("URL Shortener");
+    renderHeader($appTitle);
     
     // Navbar
     echo "<nav class='navbar is-info' role='navigation' aria-label='main navigation' style='background-color: #007bff;'>";
     echo "<div class='container'>";
     echo "<div class='navbar-brand'>";
     echo "<a class='navbar-item' href='#'>";
-    echo "<img src='tutwuri.png' alt='Logo' style='max-height: 40px; margin-right: 10px;'>";
-    echo "<b>URL Shortener</b>";
+    if (file_exists(__DIR__ . '/' . $appLogo)) {
+        echo "<img src='$appLogo' alt='Logo' style='max-height: 40px; margin-right: 10px;'>";
+    }
+    echo "<b>$appTitle</b>";
     echo "</a>";
     echo "<a role='button' class='navbar-burger' aria-label='menu' aria-expanded='false' data-target='navbarBasic'>";
     echo "<span aria-hidden='true'></span><span aria-hidden='true'></span><span aria-hidden='true'></span>";
