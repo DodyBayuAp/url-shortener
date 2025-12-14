@@ -1,20 +1,39 @@
 <?php
 // --- CONFIGURATION START ---
 $configured = true;
-$dbType = 'sqlite';
+$dbType = 'sqlite'; // Database type: 'sqlite', 'mysql', or 'pgsql'
 $dbHost = 'localhost';
 $dbName = 'url_shortener';
 $dbUser = 'root';
 $dbPass = '';
+$dbPort = ''; // Optional: MySQL default 3306, PostgreSQL default 5432
+
 // Customize App Appearance
 $appTitle = 'Direktorat SMP - URL Shortener'; // Nama Aplikasi
 $appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)
 $appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)
+$appLang = 'id';             // Language: 'en' or 'id'
+
+// Database Optimization Settings
+$enableIndexes = true;        // Enable automatic index creation (recommended: true)
+$dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)
+$enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)
+$autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)
 // --- CONFIGURATION END ---
+
+// Helper for Translation
+function __($key) {
+    global $appLang;
+    static $translations = null;
+    if ($translations === null) {
+        $translations = getTranslations();
+    }
+    return $translations[$appLang][$key] ?? ($translations['en'][$key] ?? $key);
+}
 
 // Helper for Error Pages (Early Declaration)
 function renderErrorPage($title, $message, $showRetry = false) {
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Error - $title</title>";
+    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('error_title') . " - $title</title>";
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
     echo "<style>body { background-color: #f5f7fa; min-height: 100vh; display: flex; align-items: center; justify-content: center; }</style>";
@@ -60,22 +79,38 @@ if (!$configured) {
         $name = $_POST['db_name'] ?? 'url_shortener';
         $user = $_POST['db_user'] ?? 'root';
         $pass = $_POST['db_pass'] ?? '';
+        $port = $_POST['db_port'] ?? '';
 
         // Test Connection
         try {
             if ($type === 'mysql') {
-                $dsn = "mysql:host=$host;dbname=$name;charset=utf8mb4";
-                // Check if DB exists, if not try to create (requires root usually, but let's try connecting to server first)
-                // Note: Connecting to specific DB might fail if it doesn't exist. 
-                // Better strategy: Connect to host, create DB.
+                $portStr = $port ?: '3306';
+                $dsn = "mysql:host=$host;port=$portStr;dbname=$name;charset=utf8mb4";
                 try {
                     $pdoTest = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
                 } catch (PDOException $e) {
                     if ($e->getCode() == 1049) { // Unknown database
-                        $dsnNoDb = "mysql:host=$host;charset=utf8mb4";
+                        $dsnNoDb = "mysql:host=$host;port=$portStr;charset=utf8mb4";
                         $pdoTest = new PDO($dsnNoDb, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
                         $pdoTest->exec("CREATE DATABASE IF NOT EXISTS `$name`");
-                        $dsn = "mysql:host=$host;dbname=$name;charset=utf8mb4";
+                        $dsn = "mysql:host=$host;port=$portStr;dbname=$name;charset=utf8mb4";
+                        $pdoTest = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                    } else {
+                        throw $e;
+                    }
+                }
+            } elseif ($type === 'pgsql') {
+                $portStr = $port ?: '5432';
+                $dsn = "pgsql:host=$host;port=$portStr;dbname=$name";
+                try {
+                    $pdoTest = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                } catch (PDOException $e) {
+                    // Try to create database if it doesn't exist
+                    if (strpos($e->getMessage(), 'does not exist') !== false) {
+                        $dsnNoDb = "pgsql:host=$host;port=$portStr;dbname=postgres";
+                        $pdoTest = new PDO($dsnNoDb, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                        $pdoTest->exec("CREATE DATABASE $name");
+                        $dsn = "pgsql:host=$host;port=$portStr;dbname=$name";
                         $pdoTest = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
                     } else {
                         throw $e;
@@ -92,23 +127,29 @@ if (!$configured) {
             // If we are here, connection is OK. Update this file.
             $content = file_get_contents(__FILE__);
             
-            // Regex to replace configuration
-            $newConfig = "// --- CONFIGURATION START ---
-$configured = true;
-$dbType = 'mysql';
-$dbHost = 'localhost';
-$dbName = 'url_shortener';
-$dbUser = 'root';
-$dbPass = '';
-// --- CONFIGURATION END ---";
+            // Build new config
+            $newConfig = "// --- CONFIGURATION START ---\n";
+            $newConfig .= "\$configured = true;\n";
+            $newConfig .= "\$dbType = '$type'; // Database type: 'sqlite', 'mysql', or 'pgsql'\n";
+            $newConfig .= "\$dbHost = '$host';\n";
+            $newConfig .= "\$dbName = '$name';\n";
+            $newConfig .= "\$dbUser = '$user';\n";
+            $newConfig .= "\$dbPass = '" . addslashes($pass) . "';\n";
+            $newConfig .= "\$dbPort = '$port'; // Optional: MySQL default 3306, PostgreSQL default 5432\n\n";
+            $newConfig .= "// Customize App Appearance\n";
+            $newConfig .= "\$appTitle = 'Direktorat SMP - URL Shortener'; // Nama Aplikasi\n";
+            $newConfig .= "\$appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)\n";
+            $newConfig .= "\$appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)\n";
+            $newConfig .= "\$appLang = 'id';             // Language: 'en' or 'id'\n\n";
+            $newConfig .= "// Database Optimization Settings\n";
+            $newConfig .= "\$enableIndexes = true;        // Enable automatic index creation (recommended: true)\n";
+            $newConfig .= "\$dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)\n";
+            $newConfig .= "\$enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)\n";
+            $newConfig .= "\$autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)\n";
+            $newConfig .= "// --- CONFIGURATION END ---";
 
-            // Escape $ for replacement if necessary, but string replacement is safer than regex replace if we can locate exact block
-            // However, regex is robust for matching the block.
             $pattern = '/\/\/ --- CONFIGURATION START ---.*?[\s\S].*?\/\/ --- CONFIGURATION END ---/s';
-            // Need to double escape backslashes for variable names in the replacement string? 
-            // Actually, preg_replace replacement string treats $n as backreferences.
-            // So we need to escape $ symbols in $newConfig.
-            $replacement = str_replace('$', '\$', $newConfig);
+            $replacement = str_replace('$', '\\$', $newConfig);
             
             $newContent = preg_replace($pattern, $replacement, $content);
             
@@ -130,7 +171,7 @@ $dbPass = '';
     }
 
     // Render Setup Form
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Setup Wizard</title>";
+    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('setup_wizard') . "</title>";
     if (file_exists(__DIR__ . '/' . $appFavicon)) {
         echo "<link rel='icon' href='" . BASE_PATH . "/$appFavicon' type='image/x-icon'>"; 
     }
@@ -144,25 +185,26 @@ $dbPass = '';
     if (file_exists(__DIR__ . '/' . $appLogo)) {
         echo "<img src='$appLogo' alt='Logo' style='height:80px'>";
     }
-    echo "<h1 class='title is-4 mt-3'>$appTitle</h1><p class='subtitle is-6'>Setup Konfigurasi Awal</p>";
+    echo "<h1 class='title is-4 mt-3'>$appTitle</h1><p class='subtitle is-6'>" . __('setup_config') . "</p>";
     echo "</div>";
     
     if ($error) echo "<div class='notification is-danger'>$error</div>";
 
     echo "<form method='post'>";
-    echo "<div class='field'><label class='label'>Jenis Database</label><div class='control'>";
+    echo "<div class='field'><label class='label'>" . __('db_type') . "</label><div class='control'>";
     echo "<div class='select is-fullwidth'><select name='db_type' id='dbType' onchange='toggleFields()'>";
-    echo "<option value='sqlite'>SQLite (Tanpa Setup)</option><option value='mysql'>MySQL / MariaDB</option>";
+    echo "<option value='sqlite'>" . __('sqlite_opt') . "</option><option value='mysql'>" . __('mysql_opt') . "</option><option value='pgsql'>PostgreSQL</option>";
     echo "</select></div></div></div>";
 
     echo "<div id='mysqlFields' style='display:none;'>";
-    echo "<div class='field'><label class='label'>Database Host</label><div class='control has-icons-left'><input class='input' type='text' name='db_host' value='localhost'><span class='icon is-small is-left'><i class='fas fa-server'></i></span></div></div>";
-    echo "<div class='field'><label class='label'>Nama Database</label><div class='control has-icons-left'><input class='input' type='text' name='db_name' value='url_shortener'><span class='icon is-small is-left'><i class='fas fa-database'></i></span></div></div>";
-    echo "<div class='field'><label class='label'>Database User</label><div class='control has-icons-left'><input class='input' type='text' name='db_user' value='root'><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
-    echo "<div class='field'><label class='label'>Database Password</label><div class='control has-icons-left'><input class='input' type='password' name='db_pass'><span class='icon is-small is-left'><i class='fas fa-key'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>" . __('db_host') . "</label><div class='control has-icons-left'><input class='input' type='text' name='db_host' value='localhost'><span class='icon is-small is-left'><i class='fas fa-server'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>" . __('db_name') . "</label><div class='control has-icons-left'><input class='input' type='text' name='db_name' value='url_shortener'><span class='icon is-small is-left'><i class='fas fa-database'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>" . __('db_user') . "</label><div class='control has-icons-left'><input class='input' type='text' name='db_user' value='root'><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>" . __('db_pass') . "</label><div class='control has-icons-left'><input class='input' type='password' name='db_pass'><span class='icon is-small is-left'><i class='fas fa-key'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>Port (Optional)</label><div class='control has-icons-left'><input class='input' type='text' name='db_port' placeholder='3306 for MySQL, 5432 for PostgreSQL'><span class='icon is-small is-left'><i class='fas fa-plug'></i></span></div></div>";
     echo "</div>";
 
-    echo "<div class='field mt-5'><button class='button is-primary is-fullwidth' type='submit'>Simpan & Install</button></div>";
+    echo "<div class='field mt-5'><button class='button is-primary is-fullwidth' type='submit'>" . __('save_install') . "</button></div>";
     echo "</form>";
     
     echo "</div></div></div></div></div></section>";
@@ -170,7 +212,7 @@ $dbPass = '';
     echo "<script>
     function toggleFields() {
         var type = document.getElementById('dbType').value;
-        document.getElementById('mysqlFields').style.display = (type === 'mysql') ? 'block' : 'none';
+        document.getElementById('mysqlFields').style.display = (type === 'mysql' || type === 'pgsql') ? 'block' : 'none';
     }
     </script>";
     echo "</body></html>";
@@ -178,7 +220,13 @@ $dbPass = '';
 }
 
 if ($dbType === 'mysql') {
-    $dsn = "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4";
+    $port = $dbPort ?: '3306';
+    $dsn = "mysql:host=$dbHost;port=$port;dbname=$dbName;charset=utf8mb4";
+    $user = $dbUser;
+    $pass = $dbPass;
+} elseif ($dbType === 'pgsql') {
+    $port = $dbPort ?: '5432';
+    $dsn = "pgsql:host=$dbHost;port=$port;dbname=$dbName";
     $user = $dbUser;
     $pass = $dbPass;
 } elseif ($dbType === 'sqlite') {
@@ -196,29 +244,18 @@ $options = [
 try {
     $pdo = new PDO($dsn, $user ?? null, $pass ?? null, $options);
 
-    // Buat tabel jika belum ada
-    if ($dbType === 'mysql') {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS urls (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            long_url TEXT NOT NULL,
-            short_code VARCHAR(50) NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id INTEGER DEFAULT 1
-        );");
-    } else {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS urls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            long_url TEXT NOT NULL,
-            short_code VARCHAR(50) NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id INTEGER DEFAULT 1
-        );");
-    }
-
-    // Buat tabel jika belum ada
+    // Buat tabel users
     if ($dbType === 'mysql') {
         $pdo->exec("CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0,
+            force_change_password INTEGER DEFAULT 0
+        );");
+    } elseif ($dbType === 'pgsql') {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
             password TEXT NOT NULL,
             is_admin INTEGER DEFAULT 0,
@@ -234,38 +271,61 @@ try {
         );");
     }
 
-    // Migration: Add force_change_password if not exists (simple check via try/catch or column info)
-    // For SQLite, ALTER TABLE ADD COLUMN is supported
+    // Migration: Add columns if not exists
     try {
         $pdo->exec("ALTER TABLE users ADD COLUMN force_change_password INTEGER DEFAULT 0");
-    } catch (Exception $e) {
-        // Ignore if column already exists
-    }
-
-    // Migration: Add is_admin if not exists
+    } catch (Exception $e) {}
+    
     try {
         $pdo->exec("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0");
-        // Ensure original admin is admin
         $pdo->exec("UPDATE users SET is_admin = 1 WHERE username = 'admin'");
-    } catch (Exception $e) {
-        // Ignore if column already exists
+    } catch (Exception $e) {}
+
+    // Buat tabel urls
+    if ($dbType === 'mysql') {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS urls (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            long_url TEXT NOT NULL,
+            short_code VARCHAR(50) NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER DEFAULT 1,
+            INDEX idx_user_id (user_id),
+            INDEX idx_short_code (short_code)
+        );");
+    } elseif ($dbType === 'pgsql') {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS urls (
+            id SERIAL PRIMARY KEY,
+            long_url TEXT NOT NULL,
+            short_code VARCHAR(50) NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER DEFAULT 1
+        );");
+        // Create indexes separately for PostgreSQL
+        try {
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_urls_user_id ON urls(user_id)");
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_urls_short_code ON urls(short_code)");
+        } catch (Exception $e) {}
+    } else {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS urls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            long_url TEXT NOT NULL,
+            short_code VARCHAR(50) NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER DEFAULT 1
+        );");
+        // Create indexes for SQLite
+        try {
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_urls_user_id ON urls(user_id)");
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_urls_short_code ON urls(short_code)");
+        } catch (Exception $e) {}
     }
 
     // Migration: Add user_id to urls if not exists
     try {
         $pdo->exec("ALTER TABLE urls ADD COLUMN user_id INTEGER DEFAULT 1");
-    } catch (Exception $e) {
-        // Ignore
-    }
+    } catch (Exception $e) {}
 
-    // Migration: Increase short_code length
-    try {
-        $pdo->exec("ALTER TABLE urls MODIFY COLUMN short_code VARCHAR(50)");
-    } catch (Exception $e) {
-        // Ignore (Might fail on SQLite or if already changed)
-    }
-
-    // Buat tabel visits (Statistik)
+    // Buat tabel visits (Statistik) dengan optimasi
     if ($dbType === 'mysql') {
         $pdo->exec("CREATE TABLE IF NOT EXISTS visits (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -276,8 +336,33 @@ try {
             user_agent TEXT,
             referrer TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_url_id (url_id),
+            INDEX idx_created_at (created_at),
+            INDEX idx_ip_address (ip_address),
+            INDEX idx_url_date (url_id, created_at),
             FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
         );");
+    } elseif ($dbType === 'pgsql') {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS visits (
+            id SERIAL PRIMARY KEY,
+            url_id INTEGER,
+            ip_address VARCHAR(45),
+            country VARCHAR(100),
+            city VARCHAR(100),
+            user_agent TEXT,
+            referrer TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
+        );");
+        // Create indexes for PostgreSQL
+        if ($enableIndexes) {
+            try {
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_url_id ON visits(url_id)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_created_at ON visits(created_at)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_ip_address ON visits(ip_address)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_url_date ON visits(url_id, created_at)");
+            } catch (Exception $e) {}
+        }
     } else {
         $pdo->exec("CREATE TABLE IF NOT EXISTS visits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -290,6 +375,78 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
         );");
+        // Create indexes for SQLite
+        if ($enableIndexes) {
+            try {
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_url_id ON visits(url_id)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_created_at ON visits(created_at)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_ip_address ON visits(ip_address)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visits_url_date ON visits(url_id, created_at)");
+            } catch (Exception $e) {}
+        }
+    }
+
+    // Buat tabel daily_stats untuk summary (jika enabled)
+    if ($enableDailySummary) {
+        if ($dbType === 'mysql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS daily_stats (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                url_id INT,
+                stat_date DATE,
+                total_clicks INT DEFAULT 0,
+                unique_visitors INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_url_date (url_id, stat_date),
+                INDEX idx_stat_date (stat_date),
+                INDEX idx_url_id (url_id),
+                FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
+            );");
+        } elseif ($dbType === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS daily_stats (
+                id SERIAL PRIMARY KEY,
+                url_id INTEGER,
+                stat_date DATE,
+                total_clicks INTEGER DEFAULT 0,
+                unique_visitors INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (url_id, stat_date),
+                FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
+            );");
+            try {
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_daily_stats_url ON daily_stats(url_id)");
+            } catch (Exception $e) {}
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS daily_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url_id INTEGER,
+                stat_date DATE,
+                total_clicks INTEGER DEFAULT 0,
+                unique_visitors INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (url_id, stat_date),
+                FOREIGN KEY(url_id) REFERENCES urls(id) ON DELETE CASCADE
+            );");
+            try {
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date)");
+                $pdo->exec("CREATE INDEX IF NOT EXISTS idx_daily_stats_url ON daily_stats(url_id)");
+            } catch (Exception $e) {}
+        }
+    }
+
+    // Auto cleanup old data (jika enabled)
+    if ($autoArchiveOldData && $dataRetentionDays > 0) {
+        try {
+            if ($dbType === 'mysql') {
+                $pdo->exec("DELETE FROM visits WHERE created_at < DATE_SUB(NOW(), INTERVAL $dataRetentionDays DAY)");
+            } elseif ($dbType === 'pgsql') {
+                $pdo->exec("DELETE FROM visits WHERE created_at < NOW() - INTERVAL '$dataRetentionDays days'");
+            } else {
+                $pdo->exec("DELETE FROM visits WHERE created_at < datetime('now', '-$dataRetentionDays days')");
+            }
+        } catch (Exception $e) {}
     }
 
     // Tambah pengguna admin jika belum ada
@@ -364,7 +521,7 @@ function csrfField() {
 
 function validateCsrf() {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        die('Validasi CSRF gagal. Silakan refresh halaman.');
+        die(__('error_csrf'));
     }
 }
 
@@ -460,13 +617,13 @@ if ($uri === BASE_PATH . '/login') {
     if (file_exists(__DIR__ . '/' . $appLogo)) {
         echo "<figure class='image is-128x128 is-inline-block mb-4'><img src='$appLogo' alt='Logo Details'></figure>";
     }
-    echo "<h1 class='title has-text-centered'>Login</h1>";
+    echo "<h1 class='title has-text-centered'>" . __('login') . "</h1>";
     if (isset($error)) echo "<div class='notification is-danger is-light'>$error</div>";
     echo "<form method='post'>";
     echo csrfField();
-    echo "<div class='field'><label class='label has-text-left'>Username</label><div class='control has-icons-left'><input class='input' type='text' name='username' placeholder='Username' required><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
-    echo "<div class='field'><label class='label has-text-left'>Password</label><div class='control has-icons-left'><input class='input' type='password' name='password' placeholder='Password' required><span class='icon is-small is-left'><i class='fas fa-lock'></i></span></div></div>";
-    echo "<div class='field'><button class='button is-primary is-fullwidth' type='submit'>Login</button></div>";
+    echo "<div class='field'><label class='label has-text-left'>" . __('username') . "</label><div class='control has-icons-left'><input class='input' type='text' name='username' placeholder='" . __('username') . "' required><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
+    echo "<div class='field'><label class='label has-text-left'>" . __('password') . "</label><div class='control has-icons-left'><input class='input' type='password' name='password' placeholder='" . __('password') . "' required><span class='icon is-small is-left'><i class='fas fa-lock'></i></span></div></div>";
+    echo "<div class='field'><button class='button is-primary is-fullwidth' type='submit'>" . __('login_btn') . "</button></div>";
     echo "</form>";
     // echo "<p class='has-text-centered mt-4'>Belum punya akun? <a href='/u/register'>Daftar</a></p>";
     echo "</div>"; // box
@@ -493,39 +650,39 @@ if ($uri === BASE_PATH . '/change-password') {
         $confirmPass = $_POST['confirm_password'] ?? '';
         
         if (strlen($newPass) < 6) {
-            $message = "<div class='notification is-warning'>Password minimal 6 karakter.</div>";
+            $message = "<div class='notification is-warning'>" . __('msg_pass_short') . "</div>";
         } elseif ($newPass !== $confirmPass) {
-            $message = "<div class='notification is-danger'>Password tidak cocok.</div>";
+            $message = "<div class='notification is-danger'>" . __('msg_pass_mismatch') . "</div>";
         } else {
             $hashed = password_hash($newPass, PASSWORD_BCRYPT);
             // Update password and reset force_change_password
             $stmt = $pdo->prepare("UPDATE users SET password = ?, force_change_password = 0 WHERE username = ?");
             if ($stmt->execute([$hashed, $_SESSION['username']])) {
                 unset($_SESSION['force_change']);
-                $message = "<div class='notification is-success'>Password berhasil diubah. Mengalihkan...</div><script>setTimeout(() => window.location.href='" . BASE_PATH . "/admin', 2000);</script>";
+                $message = "<div class='notification is-success'>" . __('msg_pass_reset') . "</div><script>setTimeout(() => window.location.href='" . BASE_PATH . "/admin', 2000);</script>";
             } else {
-                $message = "<div class='notification is-danger'>Gagal mengubah password.</div>";
+                $message = "<div class='notification is-danger'>Fail.</div>";
             }
         }
     }
 
-    renderHeader("Ganti Password");
+    renderHeader(__('change_pass'));
     echo "<section class='hero is-fullheight'>";
     echo "<div class='hero-body'>";
     echo "<div class='container'>";
     echo "<div class='columns is-centered'>";
     echo "<div class='column is-5-tablet is-4-desktop is-3-widescreen'>";
     echo "<div class='box'>";
-    echo "<h1 class='title has-text-centered'>Ganti Password</h1>";
-    echo "<p class='subtitle has-text-centered is-6 mb-4'>Anda harus mengganti password default.</p>";
+    echo "<h1 class='title has-text-centered'>" . __('change_pass') . "</h1>";
+    echo "<p class='subtitle has-text-centered is-6 mb-4'>" . __('must_change_pass') . "</p>";
     if (!empty($message)) echo $message;
     echo "<form method='post'>";
     echo csrfField();
-    echo "<div class='field'><label class='label'>Password Baru</label><div class='control'><input class='input' type='password' name='new_password' required></div></div>";
-    echo "<div class='field'><label class='label'>Konfirmasi Password</label><div class='control'><input class='input' type='password' name='confirm_password' required></div></div>";
-    echo "<div class='field'><button class='button is-warning is-fullwidth' type='submit'>Simpan Password</button></div>";
+    echo "<div class='field'><label class='label'>" . __('new_pass') . "</label><div class='control'><input class='input' type='password' name='new_password' required></div></div>";
+    echo "<div class='field'><label class='label'>" . __('confirm_pass') . "</label><div class='control'><input class='input' type='password' name='confirm_password' required></div></div>";
+    echo "<div class='field'><button class='button is-warning is-fullwidth' type='submit'>" . __('save_pass') . "</button></div>";
     echo "</form>";
-    echo "<div class='has-text-centered mt-4'><a href='" . BASE_PATH . "/logout'>Logout</a></div>";
+    echo "<div class='has-text-centered mt-4'><a href='" . BASE_PATH . "/logout'>" . __('logout') . "</a></div>";
     echo "</div>";
     echo "</div></div></div></div>";
     echo "</section>";
@@ -549,13 +706,13 @@ if ($uri === BASE_PATH . '/register') {
         $password = $_POST['password'] ?? '';
 
         if (strlen($password) < 6) {
-            $error = "Password minimal 6 karakter.";
+            $error = __('msg_pass_short');
         } else {
             // Cek username
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
             $stmt->execute([$username]);
             if ($stmt->fetchColumn() > 0) {
-                $error = "Username sudah digunakan.";
+                $error = __('msg_username_taken');
             } else {
                 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
                 $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
@@ -567,28 +724,28 @@ if ($uri === BASE_PATH . '/register') {
                     }
                     exit;
                 } else {
-                    $error = "Gagal mendaftar.";
+                    $error = __('msg_register_fail');
                 }
             }
         }
     }
 
-    renderHeader("Registrasi");
+    renderHeader(__('register'));
     echo "<section class='hero is-fullheight'>";
     echo "<div class='hero-body'>";
     echo "<div class='container'>";
     echo "<div class='columns is-centered'>";
     echo "<div class='column is-5-tablet is-4-desktop is-3-widescreen'>";
     echo "<div class='box'>";
-    echo "<h1 class='title has-text-centered'>Registrasi</h1>";
+    echo "<h1 class='title has-text-centered'>" . __('register') . "</h1>";
     if (isset($error)) echo "<div class='notification is-danger is-light'>$error</div>";
     echo "<form method='post'>";
     echo csrfField();
-    echo "<div class='field'><label class='label'>Username</label><div class='control has-icons-left'><input class='input' type='text' name='username' placeholder='Username' required><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
-    echo "<div class='field'><label class='label'>Password</label><div class='control has-icons-left'><input class='input' type='password' name='password' placeholder='Password' required><span class='icon is-small is-left'><i class='fas fa-lock'></i></span></div></div>";
-    echo "<div class='field'><button class='button is-primary is-fullwidth' type='submit'>Daftar</button></div>";
+    echo "<div class='field'><label class='label'>" . __('username') . "</label><div class='control has-icons-left'><input class='input' type='text' name='username' placeholder='" . __('username') . "' required><span class='icon is-small is-left'><i class='fas fa-user'></i></span></div></div>";
+    echo "<div class='field'><label class='label'>" . __('password') . "</label><div class='control has-icons-left'><input class='input' type='password' name='password' placeholder='" . __('password') . "' required><span class='icon is-small is-left'><i class='fas fa-lock'></i></span></div></div>";
+    echo "<div class='field'><button class='button is-primary is-fullwidth' type='submit'>" . __('register_btn') . "</button></div>";
     echo "</form>";
-    echo "<p class='has-text-centered mt-4'>Sudah punya akun? <a href='" . BASE_PATH . "/login'>Login</a></p>";
+    echo "<p class='has-text-centered mt-4'>" . __('have_account') . " <a href='" . BASE_PATH . "/login'>" . __('login') . "</a></p>";
     echo "</div>"; // box
     echo "</div>"; // column
     echo "</div>"; // columns
@@ -740,24 +897,24 @@ if ($uri === BASE_PATH . '/stats') {
     // Sort Data
     arsort($countries); arsort($cities); arsort($referrers); arsort($browsers); arsort($os);
 
-    renderHeader("Statistik: " . $urlData['short_code']);
+    renderHeader(__('stats_title') . ": " . $urlData['short_code']);
     
     // Inline Chart.js
     echo "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>";
 
     echo "<section class='section'>";
     echo "<div class='container'>";
-    echo "<a href='" . BASE_PATH . "/admin' class='button is-light mb-4'><span class='icon'><i class='fas fa-arrow-left'></i></span><span>Kembali ke Dashboard</span></a>";
+    echo "<a href='" . BASE_PATH . "/admin' class='button is-light mb-4'><span class='icon'><i class='fas fa-arrow-left'></i></span><span>" . __('back_dashboard') . "</span></a>";
     
-    echo "<h1 class='title'>Statistik Link</h1>";
-    echo "<p class='subtitle'>Target: <a href='{$urlData['long_url']}' target='_blank'>{$urlData['long_url']}</a></p>";
+    echo "<h1 class='title'>" . __('stats_title') . "</h1>";
+    echo "<p class='subtitle'>" . __('target') . ": <a href='{$urlData['long_url']}' target='_blank'>{$urlData['long_url']}</a></p>";
 
     // Summary Cards
     echo "<div class='columns is-multiline'>";
-    echo "<div class='column is-3'><div class='notification is-primary'><p class='heading'>Total Klik</p><p class='title'>$totalClicks</p></div></div>";
-    echo "<div class='column is-3'><div class='notification is-info'><p class='heading'>Klik Unik</p><p class='title'>$uniqueClicks</p></div></div>";
-    echo "<div class='column is-3'><div class='notification is-warning'><p class='heading'>Negara Teratas</p><p class='title'>" . (array_key_first($countries) ?? '-') . "</p></div></div>";
-    echo "<div class='column is-3'><div class='notification is-success'><p class='heading'>Perangkat Utama</p><p class='title'>" . (array_key_first($devices) ?? '-') . "</p></div></div>";
+    echo "<div class='column is-3'><div class='notification is-primary'><p class='heading'>" . __('total_clicks') . "</p><p class='title'>$totalClicks</p></div></div>";
+    echo "<div class='column is-3'><div class='notification is-info'><p class='heading'>" . __('unique_clicks') . "</p><p class='title'>$uniqueClicks</p></div></div>";
+    echo "<div class='column is-3'><div class='notification is-warning'><p class='heading'>" . __('top_country') . "</p><p class='title'>" . (array_key_first($countries) ?? '-') . "</p></div></div>";
+    echo "<div class='column is-3'><div class='notification is-success'><p class='heading'>" . __('main_device') . "</p><p class='title'>" . (array_key_first($devices) ?? '-') . "</p></div></div>";
     echo "</div>";
 
     // Charts Row 1
@@ -765,12 +922,12 @@ if ($uri === BASE_PATH . '/stats') {
     
     // Timeline
     echo "<div class='column is-8'>";
-    echo "<div class='box'><h3 class='title is-5'>Tren Klik (Harian)</h3><canvas id='chartTimeline'></canvas></div>";
+    echo "<div class='box'><h3 class='title is-5'>" . __('click_trend') . "</h3><canvas id='chartTimeline'></canvas></div>";
     echo "</div>";
     
     // Referrers
     echo "<div class='column is-4'>";
-    echo "<div class='box'><h3 class='title is-5'>Sumber Trafik</h3><canvas id='chartReferrers'></canvas></div>";
+    echo "<div class='box'><h3 class='title is-5'>" . __('traffic_source') . "</h3><canvas id='chartReferrers'></canvas></div>";
     echo "</div>";
     echo "</div>"; // columns
 
@@ -778,25 +935,25 @@ if ($uri === BASE_PATH . '/stats') {
     echo "<div class='columns'>";
     // Geo
     echo "<div class='column is-4'>";
-    echo "<div class='box'><h3 class='title is-5'>Lokasi (Negara)</h3><canvas id='chartCountry'></canvas></div>";
+    echo "<div class='box'><h3 class='title is-5'>" . __('location_country') . "</h3><canvas id='chartCountry'></canvas></div>";
     echo "</div>";
     // OS
     echo "<div class='column is-4'>";
-    echo "<div class='box'><h3 class='title is-5'>Sistem Operasi</h3><canvas id='chartOS'></canvas></div>";
+    echo "<div class='box'><h3 class='title is-5'>" . __('operating_system') . "</h3><canvas id='chartOS'></canvas></div>";
     echo "</div>";
     // Browser
     echo "<div class='column is-4'>";
-    echo "<div class='box'><h3 class='title is-5'>Browser</h3><canvas id='chartBrowser'></canvas></div>";
+    echo "<div class='box'><h3 class='title is-5'>" . __('browser') . "</h3><canvas id='chartBrowser'></canvas></div>";
     echo "</div>";
     echo "</div>"; // columns
     
     
     // Raw Data Table (Last 50)
     echo "<div class='box mt-6'>";
-    echo "<h3 class='title is-5'>Riwayat Kunjungan (Terakhir 50)</h3>";
+    echo "<h3 class='title is-5'>" . __('visit_history') . "</h3>";
     echo "<div class='table-container'>";
     echo "<table class='table is-striped is-fullwidth is-narrow'>";
-    echo "<thead><tr><th>Waktu</th><th>IP</th><th>Lokasi</th><th>OS/Browser</th><th>Sumber</th></tr></thead>";
+    echo "<thead><tr><th>" . __('time') . "</th><th>IP</th><th>" . __('location') . "</th><th>OS/" . __('browser') . "</th><th>" . __('source') . "</th></tr></thead>";
     echo "<tbody>";
     $count = 0;
     foreach ($visits as $v) {
@@ -832,7 +989,7 @@ if ($uri === BASE_PATH . '/stats') {
         data: {
             labels: $jsonDateLabels,
             datasets: [{
-                label: 'Jumlah Klik',
+                label: '" . __('click_count') . "',
                 data: $jsonDateValues,
                 borderColor: '#007bff',
                 tension: 0.1,
@@ -859,7 +1016,7 @@ if ($uri === BASE_PATH . '/stats') {
         data: {
             labels: $jsonCountryLabels,
             datasets: [{
-                label: 'Pengunjung',
+                label: '" . __('visitors') . "',
                 data: $jsonCountryValues,
                 backgroundColor: '#17a2b8'
             }]
@@ -920,19 +1077,19 @@ if ($uri === BASE_PATH . '/admin') {
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
             $stmt->execute([$shortCode]);
             if ($stmt->fetchColumn() > 0) {
-                $message = "<p style='color:red;'>Kode pendek '$shortCode' sudah digunakan.</p>";
+                $message = "<p style='color:red;'>" . sprintf(__('error_code_used'), $shortCode) . "</p>";
             } else {
                 try {
                     $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
                     $stmt->execute([$longUrl, $shortCode, $_SESSION['user_id']]);
                     $baseUrl = getBaseUrl();
-                    $message = "<p style='color:green;'>URL berhasil dibuat: <a href='$baseUrl" . BASE_PATH . "/$shortCode' target='_blank'>$baseUrl" . BASE_PATH . "/$shortCode</a></p>";
+                    $message = "<p style='color:green;'>" . __('success_created') . " <a href='$baseUrl" . BASE_PATH . "/$shortCode' target='_blank'>$baseUrl" . BASE_PATH . "/$shortCode</a></p>";
                 } catch (Exception $e) {
                     $message = "<p style='color:red;'>Error: " . $e->getMessage() . "</p>";
                 }
             }
         } else {
-            $message = "<p style='color:red;'>URL tidak valid.</p>";
+            $message = "<p style='color:red;'>" . __('error_invalid_url') . "</p>";
         }
     }
 
@@ -956,10 +1113,10 @@ if ($uri === BASE_PATH . '/admin') {
     
     echo "<div id='navbarBasic' class='navbar-menu'>";
     echo "<div class='navbar-end'>";
-    echo "<div class='navbar-item'>Halo, $username</div>";
+    echo "<div class='navbar-item'>" . __('hello') . ", $username</div>";
     echo "<div class='navbar-item'>";
     echo "<div class='buttons'>";
-    echo "<a class='button is-light is-small is-outlined' href='" . BASE_PATH . "/logout'>Logout</a>";
+    echo "<a class='button is-light is-small is-outlined' href='" . BASE_PATH . "/logout'>" . __('logout') . "</a>";
     echo "</div>";
     echo "</div>";
     
@@ -968,7 +1125,7 @@ if ($uri === BASE_PATH . '/admin') {
         echo "<div class='navbar-item'>";
         echo "<a class='button is-warning is-small' href='" . BASE_PATH . "/users'>";
         echo "<span class='icon is-small'><i class='fas fa-users-cog'></i></span>";
-        echo "<span>Kelola User</span>";
+        echo "<span>" . __('manage_users') . "</span>";
         echo "</a>";
         echo "</div>";
         echo "</a>";
@@ -990,14 +1147,14 @@ if ($uri === BASE_PATH . '/admin') {
     // Create URL Card
     echo "<div class='card mb-6'>";
     echo "<div class='card-content'>";
-    echo "<p class='title is-4'>Buat URL Pendek</p>";
+    echo "<p class='title is-4'>" . __('create_url') . "</p>";
     if(!empty($message)) echo "<div class='content'>$message</div>";
     echo "<form method='post'>";
     echo csrfField();
     echo "<div class='field has-addons'>";
-    echo "<div class='control is-expanded'><input class='input' type='text' name='long_url' placeholder='Masukkan URL Panjang (https://...)' required></div>";
-    echo "<div class='control'><input class='input' type='text' name='short_code' placeholder='Kode Unik (Ops)'></div>";
-    echo "<div class='control'><button class='button is-info' type='submit'>Pendekkan</button></div>";
+    echo "<div class='control is-expanded'><input class='input' type='text' name='long_url' placeholder='" . __('long_url_ph') . "' required></div>";
+    echo "<div class='control'><input class='input' type='text' name='short_code' placeholder='" . __('short_code_ph') . "'></div>";
+    echo "<div class='control'><button class='button is-info' type='submit'>" . __('shorten_btn') . "</button></div>";
     echo "</div>";
     echo "</form>";
     echo "</div>"; // card-content
@@ -1038,20 +1195,20 @@ if ($uri === BASE_PATH . '/admin') {
     $totalPages = ceil($totalRows / $limit);
 
     echo "<div class='box'>";
-    echo "<h2 class='subtitle'>Riwayat URL</h2>";
+    echo "<h2 class='subtitle'>" . __('history') . "</h2>";
     
     // Search Bar
     echo "<form method='get' class='mb-4'>";
     echo "<div class='field has-addons'>";
     echo "<div class='control is-expanded'>";
-    echo "<input class='input' type='text' name='q' placeholder='Cari URL asli atau kode pendek...' value='" . htmlspecialchars($search) . "'>";
+    echo "<input class='input' type='text' name='q' placeholder='" . __('search_ph') . "' value='" . htmlspecialchars($search) . "'>";
     echo "</div>";
     echo "<div class='control'>";
     echo "<button class='button is-info' type='submit'><span class='icon'><i class='fas fa-search'></i></span></button>";
     echo "</div>";
     if (!empty($search)) {
         echo "<div class='control'>";
-        echo "<a href='" . BASE_PATH . "/admin' class='button is-light'>Reset</a>";
+        echo "<a href='" . BASE_PATH . "/admin' class='button is-light'>" . __('reset') . "</a>";
         echo "</div>";
     }
     echo "</div>";
@@ -1060,7 +1217,7 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<div class='table-container'>";
     echo "<table class='table is-striped is-hoverable is-fullwidth is-responsive-cards'>";
     // Removed ID Column, Added Actions Column
-    echo "<thead><tr><th>URL Asli</th><th>URL Pendek</th><th width='200'>Aksi</th></tr></thead>";
+    echo "<thead><tr><th>" . __('original_url') . "</th><th>" . __('short_url') . "</th><th width='200'>" . __('actions') . "</th></tr></thead>";
     echo "<tbody>";
     foreach ($urls as $u) {
         $shortLink = getBaseUrl() . BASE_PATH . "/" . $u['short_code'];
@@ -1073,15 +1230,15 @@ if ($uri === BASE_PATH . '/admin') {
         echo "<td data-label='Aksi'>";
         // Action Buttons
         echo "<div class='buttons are-small'>";
-        echo "<a class='button is-warning' href='" . BASE_PATH . "/stats?id={$u['id']}' title='Statistik'><i class='fas fa-chart-bar'></i></a>";
-        echo "<button class='button is-info' onclick='openEditModal(\"{$u['id']}\", \"" . htmlspecialchars($u['long_url'], ENT_QUOTES) . "\", \"{$u['short_code']}\")' title='Edit'><i class='fas fa-edit'></i></button>";
-        echo "<button class='button is-success' onclick='copyToClipboard(\"$shortLink\")' title='Copy Link'><i class='fas fa-copy'></i></button>";
-        echo "<button class='button is-dark' onclick='openQRModal(\"$shortLink\")' title='QR Code'><i class='fas fa-qrcode'></i></button>";
+        echo "<a class='button is-warning' href='" . BASE_PATH . "/stats?id={$u['id']}' title='" . __('stats') . "'><i class='fas fa-chart-bar'></i></a>";
+        echo "<button class='button is-info' onclick='openEditModal(\"{$u['id']}\", \"" . htmlspecialchars($u['long_url'], ENT_QUOTES) . "\", \"{$u['short_code']}\")' title='" . __('edit') . "'><i class='fas fa-edit'></i></button>";
+        echo "<button class='button is-success' onclick='copyToClipboard(\"$shortLink\")' title='" . __('copy') . "'><i class='fas fa-copy'></i></button>";
+        echo "<button class='button is-dark' onclick='openQRModal(\"$shortLink\")' title='" . __('qr_code') . "'><i class='fas fa-qrcode'></i></button>";
         // Delete converted to Form
-        echo "<form method='post' action='" . BASE_PATH . "/delete' style='display:inline;' onsubmit='return confirm(\"Yakin ingin menghapus?\")'>";
+        echo "<form method='post' action='" . BASE_PATH . "/delete' style='display:inline;' onsubmit='return confirm(\"" . __('confirm_delete') . "\")'>";
         echo csrfField();
         echo "<input type='hidden' name='id' value='{$u['id']}'>";
-        echo "<button class='button is-danger' type='submit' title='Hapus'><i class='fas fa-trash'></i></button>";
+        echo "<button class='button is-danger' type='submit' title='" . __('delete') . "'><i class='fas fa-trash'></i></button>";
         echo "</form>";
         echo "</div>";
         echo "</td>";
@@ -1099,20 +1256,20 @@ if ($uri === BASE_PATH . '/admin') {
         $qParam = !empty($search) ? "&q=" . urlencode($search) : "";
         
         if ($page > 1) {
-            echo "<a class='pagination-previous' href='?page=$prevPage$qParam'>Previous</a>";
+            echo "<a class='pagination-previous' href='?page=$prevPage$qParam'>" . __('prev') . "</a>";
         } else {
-            echo "<a class='pagination-previous' disabled>Previous</a>";
+            echo "<a class='pagination-previous' disabled>" . __('prev') . "</a>";
         }
         
         if ($page < $totalPages) {
-            echo "<a class='pagination-next' href='?page=$nextPage$qParam'>Next</a>";
+            echo "<a class='pagination-next' href='?page=$nextPage$qParam'>" . __('next') . "</a>";
         } else {
-            echo "<a class='pagination-next' disabled>Next</a>";
+            echo "<a class='pagination-next' disabled>" . __('next') . "</a>";
         }
         
         echo "<ul class='pagination-list'>";
         // Simplified pagination: showing current page
-        echo "<li><a class='pagination-link is-current'>Page $page of $totalPages</a></li>";
+        echo "<li><a class='pagination-link is-current'>" . __('page') . " $page of $totalPages</a></li>";
         echo "</ul>";
         echo "</nav>";
     }
@@ -1129,14 +1286,14 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<div id='editModal' class='modal'>";
     echo "<div class='modal-background' onclick='closeEditModal()'></div>";
     echo "<div class='modal-card'>";
-    echo "<header class='modal-card-head'><p class='modal-card-title'>Edit URL</p><button class='delete' aria-label='close' onclick='closeEditModal()'></button></header>";
+    echo "<header class='modal-card-head'><p class='modal-card-title'>" . __('edit') . " URL</p><button class='delete' aria-label='close' onclick='closeEditModal()'></button></header>";
     echo "<section class='modal-card-body'>";
     echo "<form method='post' action='" . BASE_PATH . "/update'>";
     echo csrfField();
     echo "<input type='hidden' name='id' id='edit_id'>";
-    echo "<div class='field'><label class='label'>URL Panjang</label><div class='control'><input class='input' type='text' name='long_url' id='edit_long_url' required></div></div>";
-    echo "<div class='field'><label class='label'>Kode Pendek</label><div class='control'><input class='input' type='text' name='short_code' id='edit_short_code' required></div></div>";
-    echo "<div class='field mt-4'><button class='button is-success is-fullwidth' type='submit'>Simpan Perubahan</button></div>";
+    echo "<div class='field'><label class='label'>" . __('original_url') . "</label><div class='control'><input class='input' type='text' name='long_url' id='edit_long_url' required></div></div>";
+    echo "<div class='field'><label class='label'>" . __('short_url') . "</label><div class='control'><input class='input' type='text' name='short_code' id='edit_short_code' required></div></div>";
+    echo "<div class='field mt-4'><button class='button is-success is-fullwidth' type='submit'>" . __('save_pass') . "</button></div>";
     echo "</form>";
     echo "</section>";
     echo "</div>"; // modal-card
@@ -1146,10 +1303,10 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<div id='qrModal' class='modal'>";
     echo "<div class='modal-background' onclick='closeQRModal()'></div>";
     echo "<div class='modal-content has-text-centered p-4' style='background:white; border-radius:8px; width: auto; display: inline-block;'>";
-    echo "<h3 class='title is-4 mb-4'>QR Code</h3>";
+    echo "<h3 class='title is-4 mb-4'>" . __('qr_code') . "</h3>";
     echo "<div id='qrcode' style='display: flex; justify-content: center;'></div>";
     echo "<p class='mt-3 example-link' style='word-break: break-all;' id='qrLinkText'></p>";
-    echo "<button class='button is-primary mt-3' onclick='downloadQR()'><span class='icon'><i class='fas fa-download'></i></span><span>Download QR</span></button>";
+    echo "<button class='button is-primary mt-3' onclick='downloadQR()'><span class='icon'><i class='fas fa-download'></i></span><span>" . __('download_qr') . "</span></button>";
     echo "</div>";
     echo "<button class='modal-close is-large' aria-label='close' onclick='closeQRModal()'></button>";
     echo "</div>";
@@ -1158,9 +1315,9 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<script>
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            alert('Link berhasil disalin: ' + text);
+            alert('" . __('link_copied') . ": ' + text);
         }, (err) => {
-            console.error('Gagal menyalin: ', err);
+            console.error('" . __('copy_failed') . ": ', err);
         });
     }
 
@@ -1270,21 +1427,18 @@ if ($uri === BASE_PATH . '/users') {
                     // Force change password = 1 so they must change it next time
                     $stmt = $pdo->prepare("UPDATE users SET password = ?, force_change_password = 1 WHERE id = ?");
                     if ($stmt->execute([$hashed, $targetId])) {
-                         $message = "<div class='notification is-success'>Password user berhasil direset. User wajib menggantinya saat login.</div>";
+                         $message = "<div class='notification is-success'>" . __('msg_pass_reset') . "</div>";
                     }
                 }
             } elseif ($action === 'promote') {
                 $stmt = $pdo->prepare("UPDATE users SET is_admin = 1 WHERE id = ?");
                 if ($stmt->execute([$targetId])) {
-                     $message = "<div class='notification is-success'>User berhasil dijadikan Admin.</div>";
+                     $message = "<div class='notification is-success'>" . __('msg_promoted') . "</div>";
                 }
             } elseif ($action === 'demote') {
                 if ($targetId == $_SESSION['user_id']) {
-                    $message = "<div class='notification is-danger'>Tidak dapat mencabut akses admin sendiri.</div>";
-                } else {
-                    $stmt = $pdo->prepare("UPDATE users SET is_admin = 0 WHERE id = ?");
                     if ($stmt->execute([$targetId])) {
-                         $message = "<div class='notification is-success'>Akses Admin user dicabut.</div>";
+                         $message = "<div class='notification is-success'>" . __('msg_demoted') . "</div>";
                     }
                 }
             }
@@ -1295,30 +1449,30 @@ if ($uri === BASE_PATH . '/users') {
     $stmt = $pdo->query("SELECT * FROM users ORDER BY id ASC");
     $users = $stmt->fetchAll();
 
-    renderHeader("Kelola User");
+    renderHeader(__('manage_users'));
     
-    echo "<nav class='navbar is-info' style='background-color: #007bff;'><div class='container'><div class='navbar-brand'><a class='navbar-item' href='" . BASE_PATH . "/admin'><b>&larr; Kembali ke Dashboard</b></a></div></div></nav>";
+    echo "<nav class='navbar is-info' style='background-color: #007bff;'><div class='container'><div class='navbar-brand'><a class='navbar-item' href='" . BASE_PATH . "/admin'><b>&larr; " . __('back_dashboard') . "</b></a></div></div></nav>";
 
     echo "<section class='section'>";
     echo "<div class='container'>";
     echo "<div class='level'>";
-    echo "<div class='level-left'><div class='level-item'><h1 class='title'>Kelola User</h1></div></div>";
-    echo "<div class='level-right'><div class='level-item'><a class='button is-primary' href='" . BASE_PATH . "/register'><i class='fas fa-user-plus mr-2'></i>Tambah User</a></div></div>";
+    echo "<div class='level-left'><div class='level-item'><h1 class='title'>" . __('manage_users') . "</h1></div></div>";
+    echo "<div class='level-right'><div class='level-item'><a class='button is-primary' href='" . BASE_PATH . "/register'><i class='fas fa-user-plus mr-2'></i>" . __('add_user') . "</a></div></div>";
     echo "</div>";
     
     if (!empty($message)) echo $message;
     
     echo "<div class='box'>";
     echo "<table class='table is-striped is-fullwidth'>";
-    echo "<thead><tr><th>ID</th><th>Username</th><th>Status</th><th>Aksi</th></tr></thead>";
+    echo "<thead><tr><th>" . __('id_col') . "</th><th>" . __('username_col') . "</th><th>" . __('status_col') . "</th><th>" . __('action_col') . "</th></tr></thead>";
     echo "<tbody>";
     foreach ($users as $u) {
         echo "<tr>";
         echo "<td>{$u['id']}</td>";
         echo "<td>" . htmlspecialchars($u['username']) . "</td>";
         echo "<td>";
-        if ($u['is_admin']) echo "<span class='tag is-primary mr-1'>Admin</span>";
-        echo ($u['force_change_password'] ? "<span class='tag is-warning'>Wajib Ganti Pass</span>" : "<span class='tag is-success'>Aktif</span>");
+        if ($u['is_admin']) echo "<span class='tag is-primary mr-1'>" . __('role_admin') . "</span>";
+        echo ($u['force_change_password'] ? "<span class='tag is-warning'>" . __('force_pass') . "</span>" : "<span class='tag is-success'>" . __('active') . "</span>");
         echo "</td>";
         echo "<td>";
         echo "<div class='buttons are-small'>";
@@ -1326,14 +1480,14 @@ if ($uri === BASE_PATH . '/users') {
         // Promotion/Demotion Logic
         if ($u['id'] != $_SESSION['user_id']) { // Check ID instead of username
             if ($u['is_admin']) {
-                echo "<button class='button is-dark' onclick='if(confirm(\"Cabut akses admin user ini?\")) { submitForm(\"demote\", \"{$u['id']}\"); }' title='Demote'><i class='fas fa-user-minus'></i></button>";
+                echo "<button class='button is-dark' onclick='if(confirm(\"" . __('confirm_demote') . "\")) { submitForm(\"demote\", \"{$u['id']}\"); }' title='" . __('demote_admin') . "'><i class='fas fa-user-minus'></i></button>";
             } else {
-                echo "<button class='button is-info' onclick='if(confirm(\"Jadikan user ini admin?\")) { submitForm(\"promote\", \"{$u['id']}\"); }' title='Promote'><i class='fas fa-user-plus'></i></button>";
+                echo "<button class='button is-info' onclick='if(confirm(\"" . __('confirm_promote') . "\")) { submitForm(\"promote\", \"{$u['id']}\"); }' title='" . __('promote_admin') . "'><i class='fas fa-user-plus'></i></button>";
             }
-            echo "<button class='button is-danger' onclick='if(confirm(\"Hapus user ini?\")) { submitForm(\"delete\", \"{$u['id']}\"); }' title='Hapus'><i class='fas fa-trash'></i></button>";
+            echo "<button class='button is-danger' onclick='if(confirm(\"" . __('confirm_delete_user') . "\")) { submitForm(\"delete\", \"{$u['id']}\"); }' title='" . __('delete') . "'><i class='fas fa-trash'></i></button>";
         }
 
-        echo "<button class='button is-warning' onclick='openResetModal(\"{$u['id']}\", \"{$u['username']}\")' title='Reset Password'><i class='fas fa-key'></i></button>";
+        echo "<button class='button is-warning' onclick='openResetModal(\"{$u['id']}\", \"{$u['username']}\")' title='" . __('reset_pass') . "'><i class='fas fa-key'></i></button>";
         echo "</div>";
         echo "</td>";
         echo "</tr>";
@@ -1354,14 +1508,14 @@ if ($uri === BASE_PATH . '/users') {
     echo "<div id='resetModal' class='modal'>";
     echo "<div class='modal-background' onclick='closeResetModal()'></div>";
     echo "<div class='modal-card'>";
-    echo "<header class='modal-card-head'><p class='modal-card-title'>Reset Password: <span id='resetUsername'></span></p><button class='delete' onclick='closeResetModal()'></button></header>";
+    echo "<header class='modal-card-head'><p class='modal-card-title'>" . __('reset_pass') . ": <span id='resetUsername'></span></p><button class='delete' onclick='closeResetModal()'></button></header>";
     echo "<section class='modal-card-body'>";
     echo "<form method='post'>";
     echo csrfField();
     echo "<input type='hidden' name='action' value='reset_password'>";
     echo "<input type='hidden' name='user_id' id='resetUserId'>";
-    echo "<div class='field'><label class='label'>Password Baru</label><div class='control'><input class='input' type='text' name='new_password' required minlength='6' placeholder='Minimal 6 karakter'></div></div>";
-    echo "<div class='field'><button class='button is-warning is-fullwidth' type='submit'>Reset Password</button></div>";
+    echo "<div class='field'><label class='label'>" . __('new_pass') . "</label><div class='control'><input class='input' type='text' name='new_password' required minlength='6' placeholder='" . __('min_6_chars') . "'></div></div>";
+    echo "<div class='field'><button class='button is-warning is-fullwidth' type='submit'>" . __('reset_pass') . "</button></div>";
     echo "</form>";
     echo "</section>";
     echo "</div></div>";
@@ -1430,14 +1584,14 @@ if (preg_match('/^' . $escapedBase . '\/([a-zA-Z0-9]+)$/', $uri, $matches)) {
         exit;
     } else {
         http_response_code(404);
-        renderHeader("404 Not Found");
+        renderHeader(__('error_404'));
         echo "<section class='hero is-danger is-fullheight'>";
         echo "<div class='hero-body'>";
         echo "<div class='container has-text-centered'>";
         echo "<h1 class='title is-1'>404</h1>";
-        echo "<p class='subtitle is-3'>URL Tidak Ditemukan</p>";
-        echo "<p class='mb-6'>Maaf, link yang Anda tuju tidak valid atau sudah dihapus.</p>";
-        echo "<a href='" . BASE_PATH . "/login' class='button is-light is-medium'>Kembali ke Beranda</a>";
+        echo "<p class='subtitle is-3'>" . __('url_not_found') . "</p>";
+        echo "<p class='mb-6'>" . __('link_invalid') . "</p>";
+        echo "<a href='" . BASE_PATH . "/login' class='button is-light is-medium'>" . __('back_home') . "</a>";
         echo "</div>";
         echo "</div>";
         echo "</section>";
@@ -1451,4 +1605,244 @@ if (preg_match('/^' . $escapedBase . '\/([a-zA-Z0-9]+)$/', $uri, $matches)) {
 $fallbackUrl = sprintf("%s/admin", defined('BASE_PATH') ? BASE_PATH : '');
 header("Location: $fallbackUrl");
 exit;
+
+// --- TRANSLATIONS ---
+function getTranslations() {
+    return [
+        'en' => [
+            'setup_wizard' => 'Setup Wizard',
+            'setup_config' => 'Initial Configuration Setup',
+            'db_type' => 'Database Type',
+            'sqlite_opt' => 'SQLite (No Setup)',
+            'mysql_opt' => 'MySQL / MariaDB',
+            'db_host' => 'Database Host',
+            'db_name' => 'Database Name',
+            'db_user' => 'Database User',
+            'db_pass' => 'Database Password',
+            'save_install' => 'Save & Install',
+            'login' => 'Login',
+            'username' => 'Username',
+            'password' => 'Password',
+            'login_btn' => 'Login',
+            'register' => 'Register',
+            'change_pass' => 'Change Password',
+            'new_pass' => 'New Password',
+            'confirm_pass' => 'Confirm Password',
+            'save_pass' => 'Save Password',
+            'must_change_pass' => 'You must change the default password.',
+            'logout' => 'Logout',
+            'hello' => 'Hello',
+            'dashboard' => 'Dashboard',
+            'manage_users' => 'Manage Users',
+            'create_url' => 'Create Short URL',
+            'long_url_ph' => 'Enter Long URL (https://...)',
+            'short_code_ph' => 'Custom Code (Optional)',
+            'shorten_btn' => 'Shorten',
+            'history' => 'URL History',
+            'search_ph' => 'Search original URL or short code...',
+            'original_url' => 'Original URL',
+            'short_url' => 'Short URL',
+            'actions' => 'Actions',
+            'stats' => 'Statistics',
+            'edit' => 'Edit',
+            'copy' => 'Copy',
+            'delete' => 'Delete',
+            'qr_code' => 'QR Code',
+            'prev' => 'Previous',
+            'next' => 'Next',
+            'page' => 'Page',
+            'total_clicks' => 'Total Clicks',
+            'unique_clicks' => 'Unique Clicks',
+            'top_country' => 'Top Country',
+            'top_device' => 'Top Device',
+            'click_trend' => 'Click Trend (Daily)',
+            'traffic_source' => 'Traffic Source',
+            'location' => 'Location',
+            'os' => 'Operating System',
+            'browser' => 'Browser',
+            'visit_history' => 'Visit History (Last 50)',
+            'time' => 'Time',
+            'ip' => 'IP',
+            'add_user' => 'Add User',
+            'back_dashboard' => 'Back to Dashboard',
+            'role_admin' => 'Admin',
+            'active' => 'Active',
+            'force_pass' => 'Must Change Pass',
+            'reset_pass' => 'Reset Pass',
+            'promote_admin' => 'Promote to Admin',
+            'demote_admin' => 'Demote Admin',
+            'confirm_delete' => 'Are you sure you want to delete?',
+            'confirm_promote' => 'Make this user an admin?',
+            'confirm_demote' => 'Revoke admin access?',
+            'error_404' => '404 Not Found',
+            'url_not_found' => 'URL Not Found',
+            'link_invalid' => 'Sorry, the link is invalid or has been deleted.',
+            'back_home' => 'Back to Home',
+            'success_created' => 'URL successfully created:',
+            'error_code_used' => 'Short code already used.',
+            'error_invalid_url' => 'Invalid URL.',
+            'error_csrf' => 'CSRF validation failed. Please refresh.',
+            'error_db' => 'Database Connection Failed',
+            'msg_cop_success' => 'Link copied to clipboard:',
+            'msg_pass_mismatch' => 'Passwords do not match.',
+            'msg_pass_short' => 'Password must be at least 6 characters.',
+            'msg_user_deleted' => 'User deleted successfully.',
+            'msg_pass_reset' => 'Password reset successfully. User must change it on login.',
+            'msg_promoted' => 'User promoted to Admin.',
+            'msg_demoted' => 'Admin access revoked.',
+            'msg_username_taken' => 'Username already taken.',
+            'msg_register_fail' => 'Registration failed.',
+            'msg_user_created' => 'User created successfully.',
+            'id_col' => 'ID',
+            'status_col' => 'Status',
+            'confirm_delete_user' => 'Delete this user?',
+            'min_6_chars' => 'Minimum 6 characters',
+            'cant_demote_self' => 'Cannot demote yourself.',
+            'error_title' => 'Error',
+            'stats_title' => 'Link Statistics',
+            'target' => 'Target',
+            'total_clicks' => 'Total Clicks',
+            'unique_clicks' => 'Unique Clicks',
+            'top_country' => 'Top Country',
+            'main_device' => 'Main Device',
+            'click_trend' => 'Click Trend (Daily)',
+            'traffic_source' => 'Traffic Source',
+            'location_country' => 'Location (Country)',
+            'operating_system' => 'Operating System',
+            'browser' => 'Browser',
+            'visit_history' => 'Visit History (Last 50)',
+            'time' => 'Time',
+            'location' => 'Location',
+            'source' => 'Source',
+            'visitors' => 'Visitors',
+            'click_count' => 'Click Count',
+            'download_qr' => 'Download QR',
+            'link_copied' => 'Link copied successfully',
+            'copy_failed' => 'Failed to copy',
+            'reset' => 'Reset',
+            'register' => 'Register',
+            'register_btn' => 'Register',
+            'have_account' => 'Already have an account?',
+            'username_col' => 'Username',
+            'action_col' => 'Actions'
+        ],
+        'id' => [
+            'setup_wizard' => 'Setup Wizard',
+            'setup_config' => 'Setup Konfigurasi Awal',
+            'db_type' => 'Jenis Database',
+            'sqlite_opt' => 'SQLite (Tanpa Setup)',
+            'mysql_opt' => 'MySQL / MariaDB',
+            'db_host' => 'Database Host',
+            'db_name' => 'Nama Database',
+            'db_user' => 'Database User',
+            'db_pass' => 'Database Password',
+            'save_install' => 'Simpan & Install',
+            'login' => 'Masuk',
+            'username' => 'Username',
+            'password' => 'Password',
+            'login_btn' => 'Masuk',
+            'register' => 'Daftar',
+            'change_pass' => 'Ganti Password',
+            'new_pass' => 'Password Baru',
+            'confirm_pass' => 'Konfirmasi Password',
+            'save_pass' => 'Simpan Password',
+            'must_change_pass' => 'Anda harus mengganti password default.',
+            'logout' => 'Keluar',
+            'hello' => 'Halo',
+            'dashboard' => 'Dashboard',
+            'manage_users' => 'Kelola User',
+            'create_url' => 'Buat URL Pendek',
+            'long_url_ph' => 'Masukkan URL Panjang (https://...)',
+            'short_code_ph' => 'Kode Unik (Ops)',
+            'shorten_btn' => 'Pendekkan',
+            'history' => 'Riwayat URL',
+            'search_ph' => 'Cari URL asli atau kode pendek...',
+            'original_url' => 'URL Asli',
+            'short_url' => 'URL Pendek',
+            'actions' => 'Aksi',
+            'stats' => 'Statistik',
+            'edit' => 'Edit',
+            'copy' => 'Salin',
+            'delete' => 'Hapus',
+            'qr_code' => 'QR Code',
+            'prev' => 'Sebelumnya',
+            'next' => 'Berikutnya',
+            'page' => 'Halaman',
+            'total_clicks' => 'Total Klik',
+            'unique_clicks' => 'Klik Unik',
+            'top_country' => 'Negara Teratas',
+            'top_device' => 'Perangkat Utama',
+            'click_trend' => 'Tren Klik (Harian)',
+            'traffic_source' => 'Sumber Trafik',
+            'location' => 'Lokasi',
+            'os' => 'Sistem Operasi',
+            'browser' => 'Browser',
+            'visit_history' => 'Riwayat Kunjungan (Terakhir 50)',
+            'time' => 'Waktu',
+            'ip' => 'IP',
+            'add_user' => 'Tambah User',
+            'back_dashboard' => 'Kembali ke Dashboard',
+            'role_admin' => 'Admin',
+            'active' => 'Aktif',
+            'force_pass' => 'Wajib Ganti Pass',
+            'reset_pass' => 'Reset Pass',
+            'promote_admin' => 'Jadikan Admin',
+            'demote_admin' => 'Cabut Admin',
+            'confirm_delete' => 'Yakin ingin menghapus?',
+            'confirm_promote' => 'Jadikan user ini admin?',
+            'confirm_demote' => 'Cabut akses admin user ini?',
+            'error_404' => '404 Tidak Ditemukan',
+            'url_not_found' => 'URL Tidak Ditemukan',
+            'link_invalid' => 'Maaf, link yang Anda tuju tidak valid atau sudah dihapus.',
+            'back_home' => 'Kembali ke Beranda',
+            'success_created' => 'URL berhasil dibuat:',
+            'error_code_used' => 'Kode pendek sudah digunakan.',
+            'error_invalid_url' => 'URL tidak valid.',
+            'error_csrf' => 'Validasi CSRF gagal. Silakan refresh halaman.',
+            'error_db' => 'Gagal Koneksi Database',
+            'msg_cop_success' => 'Link berhasil disalin:',
+            'msg_pass_mismatch' => 'Password tidak cocok.',
+            'msg_pass_short' => 'Password minimal 6 karakter.',
+            'msg_user_deleted' => 'User berhasil dihapus.',
+            'msg_pass_reset' => 'Password user berhasil direset. User wajib menggantinya saat login.',
+            'msg_promoted' => 'User berhasil dijadikan Admin.',
+            'msg_demoted' => 'Akses Admin user dicabut.',
+            'msg_username_taken' => 'Username sudah digunakan.',
+            'msg_register_fail' => 'Gagal mendaftar.',
+            'msg_user_created' => 'User berhasil dibuat.',
+            'id_col' => 'ID',
+            'status_col' => 'Status',
+            'confirm_delete_user' => 'Hapus user ini?',
+            'min_6_chars' => 'Minimal 6 karakter',
+            'cant_demote_self' => 'Tidak dapat mencabut akses admin sendiri.',
+            'error_title' => 'Galat',
+            'stats_title' => 'Statistik Link',
+            'target' => 'Target',
+            'total_clicks' => 'Total Klik',
+            'unique_clicks' => 'Klik Unik',
+            'top_country' => 'Negara Teratas',
+            'main_device' => 'Perangkat Utama',
+            'click_trend' => 'Tren Klik (Harian)',
+            'traffic_source' => 'Sumber Trafik',
+            'location_country' => 'Lokasi (Negara)',
+            'operating_system' => 'Sistem Operasi',
+            'browser' => 'Browser',
+            'visit_history' => 'Riwayat Kunjungan (Terakhir 50)',
+            'time' => 'Waktu',
+            'location' => 'Lokasi',
+            'source' => 'Sumber',
+            'visitors' => 'Pengunjung',
+            'click_count' => 'Jumlah Klik',
+            'download_qr' => 'Download QR',
+            'link_copied' => 'Link berhasil disalin',
+            'copy_failed' => 'Gagal menyalin',
+            'reset' => 'Reset',
+            'register' => 'Registrasi',
+            'register_btn' => 'Daftar',
+            'have_account' => 'Sudah punya akun?',
+            'username_col' => 'Username',
+            'action_col' => 'Aksi'
+        ]
+    ];
+}
 

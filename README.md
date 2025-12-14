@@ -11,16 +11,19 @@ A lightweight, powerful, and single-file URL shortener written in PHP. Designed 
 *   **Admin Dashboard**: Clean, responsive interface built with Bulma CSS.
 *   **User Management**: Multi-user support. Admins can manage users, reset passwords, and force password changes.
 *   **QR Code Generation**: Instantly generate and download QR codes for your short links.
-*   **Database Flexibility**: Supports both **MySQL** and **SQLite** (default). Switches automatically or via configuration.
+*   **Database Flexibility**: Supports **MySQL**, **PostgreSQL**, and **SQLite** (default). Auto-creates indexes for optimal performance.
+*   **Performance Optimized**: Built-in database indexing, daily statistics summary, and automatic data retention management.
 *   **Secure**: Includes CSRF protection, secure session handling, and bcrypt password hashing.
 *   **Responsive Design**: Mobile-friendly interface for managing links on the go.
+*   **Internationalization**: Full support for English and Indonesian languages.
 
 ## 🚀 Installation & Setup
 
 ### Requirements
 *   PHP 7.4 or higher
-*   PDO Extension (for MySQL or SQLite)
+*   PDO Extension (for MySQL, PostgreSQL, or SQLite)
 *   Web Server (Apache/Nginx) with URL Rewriting enabled (optional but recommended for clean URLs)
+*   Database: MySQL 5.7+, PostgreSQL 9.5+, or SQLite 3.x
 
 ### Quick Start
 
@@ -33,7 +36,7 @@ A lightweight, powerful, and single-file URL shortener written in PHP. Designed 
     Open your browser and navigate to the folder (e.g., `http://localhost/u/`).
     
     You will be greeted by the **Setup Wizard**.
-    *   **Choose Database**: Select **SQLite** for instant setup (no config needed) or **MySQL** for robust production use.
+    *   **Choose Database**: Select **SQLite** for instant setup (no config needed), **MySQL** for robust production use, or **PostgreSQL** for enterprise-grade performance.
     *   **Install**: Click "Simpan & Install". The application will automatically configure itself.
 
 3.  **Login**:
