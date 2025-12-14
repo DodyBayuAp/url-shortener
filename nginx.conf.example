@@ -1,0 +1,29 @@
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/u; # Adjust to your path
+
+    index index.php index.html;
+
+    # Basic Routing for /u/
+    location /u/ {
+        # Try finding file, folder, else pass to index.php
+        try_files $uri $uri/ /u/index.php?$query_string;
+    }
+
+    # PHP Handling
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock; # Adjust PHP version/socket
+    }
+
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+
+    # Deny access to sensitive files
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
