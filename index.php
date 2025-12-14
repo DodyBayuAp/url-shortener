@@ -9,15 +9,15 @@ $dbPass = '';
 $dbPort = ''; // Optional: MySQL default 3306, PostgreSQL default 5432
 
 // Customize App Appearance
-$appTitle = 'Direktorat SMP - URL Shortener'; // Nama Aplikasi
+$appTitle = 'URL Shortener'; // Nama Aplikasi
 $appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)
 $appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)
-$appLang = 'id';             // Language: 'en' or 'id'
+$appLang = 'en';             // Language: 'en' or 'id'
 
 // Database Optimization Settings
 $enableIndexes = true;        // Enable automatic index creation (recommended: true)
-$dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)
-$enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)
+$dataRetentionDays = 0;     // Keep visit data for X days (0 = keep forever, recommended: 365)
+$enableDailySummary = false;   // Enable daily statistics summary table (recommended: true for >100K visits)
 $autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)
 // --- CONFIGURATION END ---
 

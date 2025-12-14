@@ -1,0 +1,56 @@
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment and configuration
+.env
+config.php
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+error_log
+debug.log
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Debug files
+debug_*.php
+token_*.php
+test_*.php
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Composer (if used in future)
+/vendor/
+composer.lock
+
+# Node modules (if used in future)
+node_modules/
+package-lock.json
+
+# Build artifacts
+/dist/
+/build/
+
+# User uploads (if any)
+/uploads/
+/files/
