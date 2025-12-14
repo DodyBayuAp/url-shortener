@@ -120,7 +120,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 #### 1️⃣ **Download**
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/php-url-shortener.git
+git clone https://github.com/DodyBayuAp/url-shortener
 cd php-url-shortener
 
 # Or download and extract the ZIP file
