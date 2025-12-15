@@ -40,7 +40,7 @@ Stores the shortened links with indexes for fast lookups.
 | :--- | :--- | :--- |
 | `id` | INT/SERIAL (PK) | Unique URL ID |
 | `long_url` | TEXT | The original destination URL |
-| `short_code` | VARCHAR(50) | The unique slug for the short link (Indexed) |
+| `short_code` | VARCHAR(50) | The unique slug (a-z, 0-9, -, _) (Indexed) |
 | `user_id` | INT | ID of the user who created the link (Indexed) |
 | `created_at` | TIMESTAMP | Creation time |
 

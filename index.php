@@ -9,15 +9,15 @@ $dbPass = '';
 $dbPort = ''; // Optional: MySQL default 3306, PostgreSQL default 5432
 
 // Customize App Appearance
-$appTitle = 'URL Shortener'; // Aplication Name
-$appLogo = 'logo.png';       // logo name (Should in same folder)
-$appFavicon = 'favicon.ico'; // file favicon Name (Should in same folder)
+$appTitle = 'URL Shortener'; // Application Name
+$appLogo = 'logo.png';       // Logo filename (Should be in same folder)
+$appFavicon = 'favicon.ico'; // Favicon filename (Should be in same folder)
 $appLang = 'en';             // Language: 'en' or 'id'
 
 // Database Optimization Settings
 $enableIndexes = true;        // Enable automatic index creation (recommended: true)
-$dataRetentionDays = 0;     // Keep visit data for X days (0 = keep forever, recommended: 365)
-$enableDailySummary = false;   // Enable daily statistics summary table (recommended: true for >100K visits)
+$dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)
+$enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)
 $autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)
 // --- CONFIGURATION END ---
 

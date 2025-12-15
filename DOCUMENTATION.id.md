@@ -40,7 +40,7 @@ Menyimpan link yang dipendekkan dengan index untuk pencarian cepat.
 | :--- | :--- | :--- |
 | `id` | INT/SERIAL (PK) | ID URL Unik |
 | `long_url` | TEXT | URL tujuan asli |
-| `short_code` | VARCHAR(50) | Slug unik untuk link pendek (Terindex) |
+| `short_code` | VARCHAR(50) | Slug unik (a-z, 0-9, -, _) (Terindex) |
 | `user_id` | INT | ID pengguna yang membuat link (Terindex) |
 | `created_at` | TIMESTAMP | Waktu pembuatan |
 

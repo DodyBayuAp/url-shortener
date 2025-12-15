@@ -82,7 +82,7 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 ### 🎁 **Fitur Bonus**
 - **Generasi QR Code**: QR code instan untuk semua short link
 - **Manajemen User**: Dukungan multi-user dengan role-based access
-- **Custom Short Code**: Gunakan kode Anda sendiri yang mudah diingat
+- **Custom Short Code**: Gunakan kode Anda sendiri (mendukung `a-z`, `0-9`, `-`, `_`)
 - **Operasi Bulk**: Kelola banyak URL secara efisien
 
 ---

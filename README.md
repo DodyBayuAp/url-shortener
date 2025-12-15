@@ -80,7 +80,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 ### 🎁 **Bonus Features**
 - **QR Code Generation**: Instant QR codes for all short links
 - **User Management**: Multi-user support with role-based access
-- **Custom Short Codes**: Use your own memorable codes
+- **Custom Short Codes**: Use your own memorable codes (supports `a-z`, `0-9`, `-`, `_`)
 - **Bulk Operations**: Manage multiple URLs efficiently
 
 ---
