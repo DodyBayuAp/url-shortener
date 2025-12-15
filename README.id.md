@@ -123,7 +123,10 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 ```bash
 # Clone repository
 git clone https://github.com/DodyBayuAp/url-shortener
-cd php-url-shortener
+
+# Rename directory sesuai dengan kebutuhan
+mv url-shortener u
+cd u
 
 # Atau download dan extract file ZIP
 ```
@@ -131,7 +134,7 @@ cd php-url-shortener
 #### 2️⃣ **Jalankan Setup Wizard**
 Buka browser dan navigasi ke direktori instalasi:
 ```
-http://localhost/php-url-shortener/
+http://localhost/u/
 ```
 
 **Setup Wizard** akan memandu Anda:
@@ -148,18 +151,36 @@ Password: admin
 
 ---
 
-### 🐳 Docker Deployment (Satu Perintah)
+### 🐳 Docker Deployment
 
-```bash
-docker run -d -p 8080:80 --name url-shortener \
-  -v $(pwd)/data:/var/www/html/data \
-  yourusername/php-url-shortener
-```
-
-Atau gunakan Docker Compose:
+#### Opsi 1: Menggunakan Docker Compose (Direkomendasikan)
 ```bash
 docker-compose up -d
 ```
+
+#### Opsi 2: Build dan Run Manual
+
+**Linux/Mac:**
+```bash
+# Build image
+docker build -t url-shortener .
+
+# Jalankan container
+docker run -d -p 8080:80 --name url-shortener \
+  -v $(pwd)/data:/var/www/html/data \
+  url-shortener
+```
+
+**Windows PowerShell:**
+```powershell
+# Build image
+docker build -t url-shortener .
+
+# Jalankan container
+docker run -d -p 8080:80 --name url-shortener -v ${PWD}/data:/var/www/html/data url-shortener
+```
+
+Akses aplikasi di `http://localhost:8080`
 
 Lihat [Panduan Docker](deploy/docker.md) untuk konfigurasi lanjutan.
 
@@ -168,7 +189,7 @@ Lihat [Panduan Docker](deploy/docker.md) untuk konfigurasi lanjutan.
 ### ⚡ PHP Built-in Server (Development)
 
 ```bash
-cd php-url-shortener
+cd url-shortener
 php -S localhost:8000
 ```
 

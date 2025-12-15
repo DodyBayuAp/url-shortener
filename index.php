@@ -769,14 +769,20 @@ if ($uri === BASE_PATH . '/update') {
         $shortCode = $_POST['short_code'] ?? '';
 
         if (!empty($id) && filter_var($longUrl, FILTER_VALIDATE_URL) && !empty($shortCode)) {
-            // Cek duplikat short_code selain id ini
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ? AND id != ?");
-            $stmt->execute([$shortCode, $id]);
-            if ($stmt->fetchColumn() > 0) {
-                 // Handle error appropriately or redirect with error
+            // Validasi karakter short_code
+            if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $shortCode)) {
+                 // Error handling untuk karakter tidak valid (silent fail for now or redirect with error in future)
+                 // Idealnya kita store error di session, tapi untuk minimal changes kita skip update saja
             } else {
-                $stmt = $pdo->prepare("UPDATE urls SET long_url = ?, short_code = ? WHERE id = ?");
-                $stmt->execute([$longUrl, $shortCode, $id]);
+                // Cek duplikat short_code selain id ini
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ? AND id != ?");
+                $stmt->execute([$shortCode, $id]);
+                if ($stmt->fetchColumn() > 0) {
+                     // Handle error appropriately or redirect with error
+                } else {
+                    $stmt = $pdo->prepare("UPDATE urls SET long_url = ?, short_code = ? WHERE id = ?");
+                    $stmt->execute([$longUrl, $shortCode, $id]);
+                }
             }
         }
     }
@@ -1073,19 +1079,24 @@ if ($uri === BASE_PATH . '/admin') {
                 $shortCode = generateCode();
             }
 
-            // Cek duplikat
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
-            $stmt->execute([$shortCode]);
-            if ($stmt->fetchColumn() > 0) {
-                $message = "<p style='color:red;'>" . sprintf(__('error_code_used'), $shortCode) . "</p>";
+            // Validasi Karakter Short Code
+            if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $shortCode)) {
+                $message = "<p style='color:red;'>" . __('error_code_invalid') . " (Hanya huruf, angka, - dan _)</p>";
             } else {
-                try {
-                    $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
-                    $stmt->execute([$longUrl, $shortCode, $_SESSION['user_id']]);
-                    $baseUrl = getBaseUrl();
-                    $message = "<p style='color:green;'>" . __('success_created') . " <a href='$baseUrl" . BASE_PATH . "/$shortCode' target='_blank'>$baseUrl" . BASE_PATH . "/$shortCode</a></p>";
-                } catch (Exception $e) {
-                    $message = "<p style='color:red;'>Error: " . $e->getMessage() . "</p>";
+                // Cek duplikat
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
+                $stmt->execute([$shortCode]);
+                if ($stmt->fetchColumn() > 0) {
+                    $message = "<p style='color:red;'>" . sprintf(__('error_code_used'), $shortCode) . "</p>";
+                } else {
+                    try {
+                        $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
+                        $stmt->execute([$longUrl, $shortCode, $_SESSION['user_id']]);
+                        $baseUrl = getBaseUrl();
+                        $message = "<p style='color:green;'>" . __('success_created') . " <a href='$baseUrl" . BASE_PATH . "/$shortCode' target='_blank'>$baseUrl" . BASE_PATH . "/$shortCode</a></p>";
+                    } catch (Exception $e) {
+                        $message = "<p style='color:red;'>Error: " . $e->getMessage() . "</p>";
+                    }
                 }
             }
         } else {
@@ -1544,7 +1555,7 @@ if ($uri === BASE_PATH . '/users') {
 // Match {BASE_PATH}/{code}
 // Escape BASE_PATH for regex
 $escapedBase = preg_quote(BASE_PATH, '/');
-if (preg_match('/^' . $escapedBase . '\/([a-zA-Z0-9]+)$/', $uri, $matches)) {
+if (preg_match('/^' . $escapedBase . '\/([a-zA-Z0-9\-_]+)$/', $uri, $matches)) {
     $code = $matches[1];
     
     // Ignore reserved words just in case regex slipped (though exact matches above handle them)

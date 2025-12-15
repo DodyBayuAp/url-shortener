@@ -121,7 +121,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 ```bash
 # Clone the repository
 git clone https://github.com/DodyBayuAp/url-shortener
-cd php-url-shortener
+cd url-shortener
 
 # Or download and extract the ZIP file
 ```
@@ -146,18 +146,36 @@ Password: admin
 
 ---
 
-### 🐳 Docker Deployment (One Command)
+### 🐳 Docker Deployment
 
-```bash
-docker run -d -p 8080:80 --name url-shortener \
-  -v $(pwd)/data:/var/www/html/data \
-  yourusername/php-url-shortener
-```
-
-Or use Docker Compose:
+#### Option 1: Using Docker Compose (Recommended)
 ```bash
 docker-compose up -d
 ```
+
+#### Option 2: Build and Run Manually
+
+**Linux/Mac:**
+```bash
+# Build the image
+docker build -t url-shortener .
+
+# Run the container
+docker run -d -p 8080:80 --name url-shortener \
+  -v $(pwd)/data:/var/www/html/data \
+  url-shortener
+```
+
+**Windows PowerShell:**
+```powershell
+# Build the image
+docker build -t url-shortener .
+
+# Run the container
+docker run -d -p 8080:80 --name url-shortener -v ${PWD}/data:/var/www/html/data url-shortener
+```
+
+Access the application at `http://localhost:8080`
 
 See [Docker Guide](deploy/docker.md) for advanced configurations.
 
