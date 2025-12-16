@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-16
+
+### Added
+- **Docker Support**: Included `Dockerfile` and `docker-compose.yml` for containerized deployment
+- **Short Code Flexibility**: Added support for hyphens (`-`) and underscores (`_`) in short codes
+- **Community Health Files**: Added `LICENSE`, `CONTRIBUTING.md`, and `SECURITY.md`
+- **Default Configuration**: Reset `index.php` to unconfigured state for cleaner fresh installs
+
+### Changed
+- **Documentation**: Comprehensive updates to `README.md` and `DOCUMENTATION.md` including Docker guides
+- **Project Structure**: Cleaned up temporary files and reorganized project root
+
 ## [2.0.0] - 2025-12-14
 
 ### Added
