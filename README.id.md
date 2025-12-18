@@ -258,6 +258,22 @@ Proyek ini dilisensikan di bawah **MIT License** - lihat file [LICENSE](LICENSE)
 
 ---
 
+## 💖 Dukungan
+
+Coding itu butuh kopi. Jika Anda menyukai proyek ini, pertimbangkan untuk mentraktir saya!
+
+<a href="https://paypal.me/DodyBayuArtaputra">
+  <img src="https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal">
+</a>
+<a href="https://ko-fi.com/dodybayuap">
+  <img src="https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Ko-fi">
+</a>
+<a href="https://trakteer.id/dody_bayu_artaputra/tip">
+  <img src="https://img.shields.io/badge/Trakteer-Traktir-red?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Trakteer">
+</a>
+
+---
+
 ## ⭐ Tunjukkan Dukungan Anda
 
 Jika Anda merasa proyek ini bermanfaat, pertimbangkan untuk:

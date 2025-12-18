@@ -146,6 +146,17 @@ Password: admin
 
 ---
 
+### ⚡ PHP Built-in Server (Development)
+
+```bash
+cd php-url-shortener
+php -S localhost:8000
+```
+
+Open `http://localhost:8000` in your browser.
+
+---
+
 ### 🐳 Docker Deployment
 
 #### Option 1: Using Docker Compose (Recommended)
@@ -179,16 +190,6 @@ Access the application at `http://localhost:8080`
 
 See [Docker Guide](deploy/docker.md) for advanced configurations.
 
----
-
-### ⚡ PHP Built-in Server (Development)
-
-```bash
-cd php-url-shortener
-php -S localhost:8000
-```
-
-Open `http://localhost:8000` in your browser.
 
 ---
 
@@ -250,6 +251,22 @@ Please read our [Contributing Guide](CONTRIBUTING.md) to get started.
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 **TL;DR**: Free to use, modify, and distribute for personal or commercial projects.
+
+---
+
+## 💖 Support the Project
+
+Mining code is hard work. If you like this project, please consider buying me a coffee!
+
+<a href="https://paypal.me/DodyBayuArtaputra">
+  <img src="https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal">
+</a>
+<a href="https://ko-fi.com/dodybayuap">
+  <img src="https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Ko-fi">
+</a>
+<a href="https://trakteer.id/dody_bayu_artaputra/tip">
+  <img src="https://img.shields.io/badge/Trakteer-Donate-red?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Trakteer">
+</a>
 
 ---
 
