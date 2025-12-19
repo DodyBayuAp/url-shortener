@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%7C%20PostgreSQL%20%7C%20SQLite-blue?style=flat-square)
 ![Single File](https://img.shields.io/badge/Single%20File-Yes-orange?style=flat-square)
-![Stars](https://img.shields.io/github/stars/yourusername/php-url-shortener?style=flat-square)
+![Stars](https://img.shields.io/github/stars/DodyBayuAp/url-shortener?style=flat-square)
 
 **A lightweight, powerful, and single-file URL shortener written in PHP.**  
 Designed for simplicity, ease of deployment, and robust functionality without the bloat of frameworks.
@@ -126,7 +126,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 
 #### 1️⃣ **Download**
 ```bash
-# Clone the repository
+# Clone the repository to wwww or public_html folder
 git clone https://github.com/DodyBayuAp/url-shortener
 cd url-shortener
 
@@ -136,7 +136,7 @@ cd url-shortener
 #### 2️⃣ **Run Setup Wizard**
 Open your browser and navigate to the installation directory:
 ```
-http://localhost/php-url-shortener/
+http://localhost/url-shortener/
 ```
 
 The **Setup Wizard** will guide you through:
@@ -156,7 +156,7 @@ Password: admin
 ### ⚡ PHP Built-in Server (Development)
 
 ```bash
-cd php-url-shortener
+cd url-shortener
 php -S localhost:8000
 ```
 
@@ -202,8 +202,8 @@ See [Docker Guide](deploy/docker.md) for advanced configurations.
 
 ### 🌐 One-Click Deploy
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/php-url-shortener)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/yourusername/php-url-shortener)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/DodyBayuAp/url-shortener)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/DodyBayuAp/url-shortener)
 
 See [Deployment Guides](deploy/) for more platforms.
 

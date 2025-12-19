@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%7C%20PostgreSQL%20%7C%20SQLite-blue?style=flat-square)
 ![Single File](https://img.shields.io/badge/Single%20File-Yes-orange?style=flat-square)
-![Stars](https://img.shields.io/github/stars/yourusername/php-url-shortener?style=flat-square)
+![Stars](https://img.shields.io/github/stars/DodyBayuAp/url-shortener?style=flat-square)
 
 **Pemendek URL ringan, powerful, dan single-file yang ditulis dalam PHP.**  
 Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang robust tanpa framework yang berat.
@@ -206,8 +206,8 @@ Buka `http://localhost:8000` di browser Anda.
 
 ### 🌐 One-Click Deploy
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/php-url-shortener)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/yourusername/php-url-shortener)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/DodyBayuAp/url-shortener)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/DodyBayuAp/url-shortener)
 
 Lihat [Panduan Deployment](deploy/) untuk platform lainnya.
 

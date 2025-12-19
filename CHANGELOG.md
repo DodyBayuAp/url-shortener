@@ -69,5 +69,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic BASE_PATH handling
 - Self-configuring setup wizard
 
-[2.0.0]: https://github.com/yourusername/php-url-shortener/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/yourusername/php-url-shortener/releases/tag/v1.0.0
+[2.0.0]: https://github.com/DodyBayuAp/url-shortener/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/DodyBayuAp/url-shortener/releases/tag/v1.0.0
