@@ -1,6 +1,6 @@
 <?php
 // --- CONFIGURATION START ---
-$configured = true;
+$configured = false;
 $dbType = 'sqlite'; // Database type: 'sqlite', 'mysql', or 'pgsql'
 $dbHost = 'localhost';
 $dbName = 'url_shortener';
