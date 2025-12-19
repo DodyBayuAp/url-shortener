@@ -68,7 +68,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 ### 🎨 **Modern Interface**
 - Clean, responsive design with Bulma CSS
 - Mobile-friendly dashboard
-- Dark mode support
+- **Multi-Theme Support**: 5 Built-in themes (Light, Dark, Midnight, Forest, Ocean) with a persistent theme selector.
 - Bilingual: English & Indonesian
 
 ### 🔒 **Security First**

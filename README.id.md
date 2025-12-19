@@ -70,6 +70,7 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 ### 🎨 **Interface Modern**
 - Desain bersih dan responsif dengan Bulma CSS
 - Dashboard mobile-friendly
+- **Multi-Theme Support**: 5 tema bawaan (Light, Dark, Midnight, Forest, Ocean) dengan pemilih tema yang persisten.
 - Dukungan dark mode
 - Bilingual: English & Indonesia
 

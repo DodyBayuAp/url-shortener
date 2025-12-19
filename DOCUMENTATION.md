@@ -9,6 +9,7 @@ This document provides a deep dive into the architecture, database schema, and c
 The application is built as a **Single File Application (`index.php`)**. This design choice simplifies deployment and maintenance.
 
 *   **Frontend**: HTML5, CSS3 (Bulma Framework), JavaScript (Chart.js for analytics, QRCode.js).
+    *   **Theming**: Custom CSS Variables with 5 built-in themes (Light, Dark, Midnight, Forest, Ocean).
 *   **Backend**: Native PHP (No external framework dependencies).
 *   **Database**: PDO Abstraction Layer supporting MySQL, PostgreSQL, and SQLite.
 
@@ -182,15 +183,25 @@ Returns the shortened URL as plain text (e.g., `https://u.com/abc`) or an error 
 ### Changing the Logo
 Replace `logo.png` in the root directory with your own image. Update the filename in `index.php` if necessary.
 
-### Modifying Colors
-The application defines CSS variables in the `renderHeader` function:
+### Modifying Colors & Themes
+The application uses CSS variables for theming. You can find the `renderThemeCss()` function in `index.php`.
+
+**Available Variables:**
 ```css
 :root {
     --primary-blue: #007bff;
-    --primary-yellow: #ffc107;
+    --bg-color: #f5f7fa;      /* Main background */
+    --text-color: #363636;    /* Main text color */
+    --box-bg: #ffffff;        /* Card/Box background */
+    --navbar-bg: #007bff;     /* Navbar background */
+    /* ... and more */
 }
 ```
-Edit these values in `index.php` to match your brand colors.
+
+**Adding a New Theme:**
+1.  Locate `renderThemeCss()` in `index.php`.
+2.  Add a new block: `[data-theme='your-theme-name'] { ... }`.
+3.  Add the new option to the `renderFooter()` function in the Theme Modal section.
 
 ### Database Configuration
 

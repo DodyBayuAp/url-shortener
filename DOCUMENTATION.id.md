@@ -9,6 +9,7 @@ Dokumen ini memberikan ulasan mendalam tentang arsitektur, skema database, dan o
 Aplikasi ini dibangun sebagai **Single File Application (`index.php`)**. Pilihan desain ini menyederhanakan penyebaran dan pemeliharaan.
 
 *   **Frontend**: HTML5, CSS3 (Bulma Framework), JavaScript (Chart.js untuk analitik, QRCode.js).
+    *   **Theming**: CSS Variables kustom dengan 5 tema bawaan (Light, Dark, Midnight, Forest, Ocean).
 *   **Backend**: Native PHP (Tanpa dependensi framework eksternal).
 *   **Database**: PDO Abstraction Layer yang mendukung MySQL, PostgreSQL, dan SQLite.
 
@@ -182,15 +183,25 @@ Mengembalikan URL yang telah dipendekkan sebagai plain text (contoh: `https://u.
 ### Mengubah Logo
 Ganti `logo.png` di direktori root dengan gambar Anda sendiri. Perbarui nama file di `index.php` jika perlu.
 
-### Mengubah Warna
-Aplikasi mendefinisikan variabel CSS dalam fungsi `renderHeader`:
+### Mengubah Warna & Tema
+Aplikasi menggunakan CSS variables untuk theming. Anda dapat menemukan fungsi `renderThemeCss()` di `index.php`.
+
+**Variable yang Tersedia:**
 ```css
 :root {
     --primary-blue: #007bff;
-    --primary-yellow: #ffc107;
+    --bg-color: #f5f7fa;      /* Background utama */
+    --text-color: #363636;    /* Warna teks utama */
+    --box-bg: #ffffff;        /* Background Card/Box */
+    --navbar-bg: #007bff;     /* Background Navbar */
+    /* ... lain-lain */
 }
 ```
-Edit nilai-nilai ini di `index.php` untuk menyesuaikan dengan warna merek Anda.
+
+**Menambahkan Tema Baru:**
+1.  Cari `renderThemeCss()` di `index.php`.
+2.  Tambahkan blok baru: `[data-theme='nama-tema-anda'] { ... }`.
+3.  Tambahkan opsi baru ke fungsi `renderFooter()` di bagian Theme Modal.
 
 ### Konfigurasi Database
 

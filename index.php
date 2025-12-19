@@ -37,12 +37,144 @@ function __($key) {
     return $translations[$appLang][$key] ?? ($translations['en'][$key] ?? $key);
 }
 
+// Helper for Theme CSS (Global Styles)
+function renderThemeCss() {
+    echo "<style>
+            :root {
+                --primary-blue: #007bff;
+                --primary-yellow: #ffc107;
+                --bg-color: #f5f7fa;
+                --text-color: #363636;
+                --box-bg: #ffffff;
+                --card-bg: #ffffff;
+                --title-color: #363636;
+                --subtitle-color: #4a4a4a;
+                --input-bg: #ffffff;
+                --input-border: #dbdbdb;
+                --input-text: #363636;
+                --navbar-bg: #007bff;
+                --navbar-item-hover: #0056b3;
+                --table-bg: #ffffff;
+                --table-text: #363636;
+                --table-head-text: #363636;
+            }
+
+            [data-theme='dark'] {
+                --bg-color: #121212;
+                --text-color: #e0e0e0;
+                --box-bg: #1e1e1e;
+                --card-bg: #1e1e1e;
+                --title-color: #ffffff;
+                --subtitle-color: #b0b0b0;
+                --input-bg: #2d2d2d;
+                --input-border: #444;
+                --input-text: #e0e0e0;
+                --navbar-bg: #1a1a1a;
+                --navbar-item-hover: #333;
+                --table-bg: #1e1e1e;
+                --table-text: #e0e0e0;
+                --table-head-text: #ffffff;
+            }
+
+            [data-theme='midnight'] {
+                --bg-color: #0f172a; --text-color: #f1f5f9;
+                --box-bg: #1e293b; --card-bg: #1e293b;
+                --title-color: #f8fafc; --subtitle-color: #cbd5e1;
+                --input-bg: #334155; --input-border: #475569; --input-text: #f1f5f9;
+                --navbar-bg: #3b82f6; --navbar-item-hover: #2563eb;
+                --table-bg: #1e293b; --table-text: #f1f5f9; --table-head-text: #f8fafc;
+            }
+            [data-theme='forest'] {
+                --bg-color: #052e16; --text-color: #dcfce7;
+                --box-bg: #14532d; --card-bg: #14532d;
+                --title-color: #f0fdf4; --subtitle-color: #bbf7d0;
+                --input-bg: #166534; --input-border: #15803d; --input-text: #dcfce7;
+                --navbar-bg: #15803d; --navbar-item-hover: #166534;
+                --table-bg: #14532d; --table-text: #dcfce7; --table-head-text: #f0fdf4;
+            }
+            [data-theme='ocean'] {
+                --bg-color: #083344; --text-color: #cffafe;
+                --box-bg: #164e63; --card-bg: #164e63;
+                --title-color: #ecfeff; --subtitle-color: #a5f3fc;
+                --input-bg: #0e7490; --input-border: #155e75; --input-text: #cffafe;
+                --navbar-bg: #06b6d4; --navbar-item-hover: #0891b2;
+                --table-bg: #164e63; --table-text: #cffafe; --table-head-text: #ecfeff;
+            }
+            /* Apply Variables */
+            body { background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; min-height: 100vh; }
+            .hero.is-light { background-color: var(--bg-color); }
+            
+            /* Bulma Overrides */
+            .box, .card { background-color: var(--box-bg); color: var(--text-color); box-shadow: 0 0.5em 1em -0.125em rgba(0,0,0, 0.2); transition: background-color 0.3s; }
+            .title { color: var(--title-color) !important; }
+            .subtitle { color: var(--subtitle-color) !important; }
+            .label { color: var(--text-color) !important; }
+            .input, .textarea, .select select { background-color: var(--input-bg); color: var(--input-text); border-color: var(--input-border); }
+            .input::placeholder { color: var(--subtitle-color); opacity: 0.7; }
+            
+            .navbar.is-info { background-color: var(--navbar-bg) !important; transition: background-color 0.3s; }
+            .button.is-primary { background-color: var(--navbar-bg); border: none; }
+            .button.is-primary:hover { filter: brightness(90%); }
+            
+            /* Table Overrides for Dark Mode */
+            .table { background-color: var(--table-bg); color: var(--table-text); }
+            .table thead td, .table thead th { color: var(--table-head-text); }
+            .table.is-striped tbody tr:not(.is-selected):nth-child(even) { background-color: rgba(255,255,255, 0.05) !important; }
+            .table.is-hoverable tbody tr:not(.is-selected):hover { background-color: rgba(255,255,255, 0.1) !important; }
+            .table td, .table th { border-color: var(--input-border); color: var(--table-text); }
+            
+            /* Link contrast in tables/content */
+            a { color: var(--navbar-bg); }
+            a:hover { color: var(--navbar-item-hover); }
+            /* Specific fix for short URL links in table to be lighter in dark mode if needed */
+            [data-theme='dark'] a, [data-theme='midnight'] a, [data-theme='forest'] a, [data-theme='ocean'] a {
+                color: #60a5fa; /* Lighter blue for better contrast on dark */
+            }
+            [data-theme='dark'] a:hover, [data-theme='midnight'] a:hover, [data-theme='forest'] a:hover, [data-theme='ocean'] a:hover {
+                color: #93c5fd;
+            }
+            
+            /* Theme FAB and Modal */
+            .theme-fab { position: fixed; bottom: 2rem; right: 2rem; width: 3.5rem; height: 3.5rem; border-radius: 50%; background-color: var(--navbar-bg); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; z-index: 999; border: none; }
+            .theme-fab:hover { transform: scale(1.1); }
+            .theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 1rem; }
+            .theme-option { padding: 1rem; border-radius: 8px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s, border-color 0.2s; }
+            .theme-option:hover { transform: translateY(-3px); }
+            .theme-option.active { border-color: var(--navbar-bg); transform: scale(1.05); }
+            .theme-prev-light { background: #f5f7fa; color: #363636; }
+            .theme-prev-dark { background: #121212; color: #e0e0e0; }
+            .theme-prev-midnight { background: #0f172a; color: #f1f5f9; }
+            .theme-prev-forest { background: #052e16; color: #dcfce7; }
+            .theme-prev-ocean { background: #083344; color: #cffafe; }
+
+            .hero-body { padding-top: 3rem; padding-bottom: 3rem; }
+            @media screen and (max-width: 768px) {
+                .table.is-responsive-cards thead { display: none; }
+                .table.is-responsive-cards tbody tr { display: block; margin-bottom: 1rem; border: 1px solid var(--input-border); border-radius: 4px; padding: 1rem; background: var(--box-bg); box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1); }
+                .table.is-responsive-cards tbody td { display: flex; justify-content: space-between; border: none; padding: 0.5rem 0; text-align: right; background: transparent; color: var(--text-color); }
+                .table.is-responsive-cards tbody td:before { content: attr(data-label); font-weight: bold; margin-right: 1rem; text-align: left; }
+                .table.is-responsive-cards tbody td:last-child { border-bottom: none; }
+            }
+          </style>";
+}
+
+function renderThemeScript() {
+    echo "<script>
+        (function() {
+            var savedTheme = localStorage.getItem('app_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>";
+}
+
 // Helper for Error Pages (Early Declaration)
 function renderErrorPage($title, $message, $showRetry = false) {
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('error_title') . " - $title</title>";
+    echo "<!DOCTYPE html><html data-theme='light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('error_title') . " - $title</title>";
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
-    echo "<style>body { background-color: #f5f7fa; min-height: 100vh; display: flex; align-items: center; justify-content: center; }</style>";
+    renderThemeCss();
+    renderThemeScript();
+    echo "<style>body { display: flex; align-items: center; justify-content: center; }</style>";
     echo "</head><body>";
     echo "<div class='container'><div class='columns is-centered'><div class='column is-6'>";
     echo "<div class='box has-text-centered p-6'>";
@@ -167,12 +299,14 @@ if (!$configured) {
     }
 
     // Render Setup Form
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('setup_wizard') . "</title>";
+    echo "<!DOCTYPE html><html data-theme='light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('setup_wizard') . "</title>";
     if (file_exists(__DIR__ . '/' . $appFavicon)) {
         echo "<link rel='icon' href='" . BASE_PATH . "/$appFavicon' type='image/x-icon'>"; 
     }
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
+    renderThemeCss();
+    renderThemeScript();
     echo "</head><body>";
     echo "<section class='hero is-fullheight is-light'>";
     echo "<div class='hero-body'><div class='container'><div class='columns is-centered'><div class='column is-5'>";
@@ -205,12 +339,42 @@ if (!$configured) {
     
     echo "</div></div></div></div></div></section>";
     
+    echo "</div></div></div></div></div></section>";
+    // Add Theme Selector to Setup Wizard too
+    renderFooter(); // We can reuse renderFooter which expects </body></html> but also has FAB.
+    // Wait, renderFooter is defined later (line 568). We can't call it here if it's not defined yet?
+    // Actually in PHP functions are global. renderFooter is defined at line 568. 
+    // But renderFooter closes html. lines 208-216 close html and exit.
+    // Let's enable FAB here too.
+    
     echo "<script>
     function toggleFields() {
         var type = document.getElementById('dbType').value;
         document.getElementById('mysqlFields').style.display = (type === 'mysql' || type === 'pgsql') ? 'block' : 'none';
     }
     </script>";
+    
+    // Inline simplified Footer functionality for Setup Wizard to enable Theme Switching
+    echo "
+    <button class='theme-fab' onclick='openThemeModal()' title='" . __('select_theme') . "'><i class='fas fa-palette fa-lg'></i></button>
+    <div class='modal' id='themeModal'><div class='modal-background' onclick='closeThemeModal()'></div><div class='modal-card'>
+    <header class='modal-card-head' style='background-color: var(--box-bg); border-bottom: 1px solid var(--input-border);'><p class='modal-card-title' style='color: var(--title-color)'>" . __('select_theme') . "</p><button class='delete' onclick='closeThemeModal()'></button></header>
+    <section class='modal-card-body' style='background-color: var(--bg-color);'>
+    <div class='theme-grid'>
+    <div class='theme-option theme-prev-light' onclick='setTheme(\"light\")'><div class='mb-2'><i class='fas fa-sun fa-2x'></i></div><span>Light</span></div>
+    <div class='theme-option theme-prev-dark' onclick='setTheme(\"dark\")'><div class='mb-2'><i class='fas fa-moon fa-2x'></i></div><span>Dark</span></div>
+    <div class='theme-option theme-prev-midnight' onclick='setTheme(\"midnight\")'><div class='mb-2'><i class='fas fa-cloud-moon fa-2x'></i></div><span>Midnight</span></div>
+    <div class='theme-option theme-prev-forest' onclick='setTheme(\"forest\")'><div class='mb-2'><i class='fas fa-tree fa-2x'></i></div><span>Forest</span></div>
+    <div class='theme-option theme-prev-ocean' onclick='setTheme(\"ocean\")'><div class='mb-2'><i class='fas fa-water fa-2x'></i></div><span>Ocean</span></div>
+    </div></section></div></div>
+    <script>
+    function openThemeModal(){document.getElementById('themeModal').classList.add('is-active');highlightCurrentTheme();}
+    function closeThemeModal(){document.getElementById('themeModal').classList.remove('is-active');}
+    function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('app_theme',t);highlightCurrentTheme();}
+    function highlightCurrentTheme(){const c=localStorage.getItem('app_theme')||'light';document.querySelectorAll('.theme-option').forEach(e=>{e.classList.remove('active');if(e.getAttribute('onclick').includes(c))e.classList.add('active');});}
+    </script>
+    ";
+    
     echo "</body></html>";
     exit;
 }
@@ -539,34 +703,97 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Helper untuk render view sederhana
 function renderHeader($title) {
     global $appFavicon; // Access global config
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>$title</title>";
+    echo "<!DOCTYPE html><html data-theme='light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>$title</title>";
     if (file_exists(__DIR__ . '/' . $appFavicon)) {
         echo "<link rel='icon' href='" . BASE_PATH . "/$appFavicon' type='image/x-icon'>";
     }
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
     echo "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>";
     echo "<script src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'></script>";
-    echo "<style>
-            :root { --primary-blue: #007bff; /* Tut Wuri Blue Approx */ --primary-yellow: #ffc107; }
-            body { background-color: #f5f7fa; min-height: 100vh; }
-            .hero-body { padding-top: 3rem; padding-bottom: 3rem; }
-            .navbar.is-info { background-color: var(--primary-blue); }
-            .button.is-primary { background-color: var(--primary-blue); }
-            .button.is-primary:hover { background-color: #0056b3; }
-            .title { color: #363636; }
-            @media screen and (max-width: 768px) {
-                .table.is-responsive-cards thead { display: none; }
-                .table.is-responsive-cards tbody tr { display: block; margin-bottom: 1rem; border: 1px solid #dbdbdb; border-radius: 4px; padding: 1rem; background: white; box-shadow: 0 2px 3px rgba(10, 10, 10, 0.1); }
-                .table.is-responsive-cards tbody td { display: flex; justify-content: space-between; border: none; padding: 0.5rem 0; text-align: right; }
-                .table.is-responsive-cards tbody td:before { content: attr(data-label); font-weight: bold; margin-right: 1rem; text-align: left; }
-                .table.is-responsive-cards tbody td:last-child { border-bottom: none; }
-            }
-          </style>";
+    renderThemeCss();
+    renderThemeScript();
     echo "</head><body>";
 }
 
+
 function renderFooter() {
-    echo "</body></html>";
+    echo "
+    <!-- Theme Toggle FAB -->
+    <button class='theme-fab' onclick='openThemeModal()' title='" . __('select_theme') . "'>
+        <i class='fas fa-palette fa-lg'></i>
+    </button>
+
+    <!-- Theme Modal -->
+    <div class='modal' id='themeModal'>
+        <div class='modal-background' onclick='closeThemeModal()'></div>
+        <div class='modal-card'>
+            <header class='modal-card-head' style='background-color: var(--box-bg); border-bottom: 1px solid var(--input-border);'>
+                <p class='modal-card-title' style='color: var(--title-color)'>" . __('select_theme') . "</p>
+                <button class='delete' aria-label='close' onclick='closeThemeModal()'></button>
+            </header>
+            <section class='modal-card-body' style='background-color: var(--bg-color);'>
+                <div class='theme-grid'>
+                    <div class='theme-option theme-prev-light' onclick='setTheme(\"light\")'>
+                        <div class='mb-2'><i class='fas fa-sun fa-2x'></i></div>
+                        <span>Light</span>
+                    </div>
+                    <div class='theme-option theme-prev-dark' onclick='setTheme(\"dark\")'>
+                        <div class='mb-2'><i class='fas fa-moon fa-2x'></i></div>
+                        <span>Dark</span>
+                    </div>
+                    <div class='theme-option theme-prev-midnight' onclick='setTheme(\"midnight\")'>
+                        <div class='mb-2'><i class='fas fa-cloud-moon fa-2x'></i></div>
+                        <span>Midnight</span>
+                    </div>
+                    <div class='theme-option theme-prev-forest' onclick='setTheme(\"forest\")'>
+                        <div class='mb-2'><i class='fas fa-tree fa-2x'></i></div>
+                        <span>Forest</span>
+                    </div>
+                    <div class='theme-option theme-prev-ocean' onclick='setTheme(\"ocean\")'>
+                        <div class='mb-2'><i class='fas fa-water fa-2x'></i></div>
+                        <span>Ocean</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+    function openThemeModal() {
+        document.getElementById('themeModal').classList.add('is-active');
+        highlightCurrentTheme();
+    }
+
+    function closeThemeModal() {
+        document.getElementById('themeModal').classList.remove('is-active');
+    }
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('app_theme', theme);
+        highlightCurrentTheme();
+        // Optional: close modal on select, or let user explore
+        // closeThemeModal(); 
+    }
+
+    function highlightCurrentTheme() {
+        const current = localStorage.getItem('app_theme') || 'light';
+        document.querySelectorAll('.theme-option').forEach(el => {
+            el.classList.remove('active');
+            if (el.getAttribute('onclick').includes(current)) {
+                el.classList.add('active');
+            }
+        });
+    }
+    
+    // Close modal on Escape
+    document.addEventListener('keydown', function (event) {
+        if(event.key === 'Escape') {
+            closeThemeModal();
+        }
+    });
+    </script>
+    </body></html>";
 }
 
 // 0. API Endpoint (Query String)
@@ -1866,6 +2093,7 @@ function getTranslations() {
         'en' => [
             'setup_wizard' => 'Setup Wizard',
             'setup_config' => 'Initial Configuration Setup',
+            'select_theme' => 'Select Theme',
             'db_type' => 'Database Type',
             'sqlite_opt' => 'SQLite (No Setup)',
             'mysql_opt' => 'MySQL / MariaDB',
@@ -1999,6 +2227,7 @@ function getTranslations() {
         'id' => [
             'setup_wizard' => 'Setup Wizard',
             'setup_config' => 'Setup Konfigurasi Awal',
+            'select_theme' => 'Pilih Tema',
             'db_type' => 'Jenis Database',
             'sqlite_opt' => 'SQLite (Tanpa Setup)',
             'mysql_opt' => 'MySQL / MariaDB',
