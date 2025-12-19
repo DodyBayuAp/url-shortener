@@ -1,6 +1,6 @@
 <?php
 // --- CONFIGURATION START ---
-$configured = false;
+$configured = true;
 $dbType = 'sqlite'; // Database type: 'sqlite', 'mysql', or 'pgsql'
 $dbHost = 'localhost';
 $dbName = 'url_shortener';
@@ -9,9 +9,9 @@ $dbPass = '';
 $dbPort = ''; // Optional: MySQL default 3306, PostgreSQL default 5432
 
 // Customize App Appearance
-$appTitle = 'URL Shortener'; // Application Name
-$appLogo = 'logo.png';       // Logo filename (Should be in same folder)
-$appFavicon = 'favicon.ico'; // Favicon filename (Should be in same folder)
+$appTitle = 'URL Shortener'; // Nama Aplikasi
+$appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)
+$appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)
 $appLang = 'en';             // Language: 'en' or 'id'
 
 // Database Optimization Settings
@@ -19,6 +19,12 @@ $enableIndexes = true;        // Enable automatic index creation (recommended: t
 $dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)
 $enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)
 $autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)
+
+// API Settings
+$apiEnabled = true;
+$apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // Default allowed user agents
+$apiAllowedIPs = ''; // Comma separated IPs, empty means all IPs allowed
+$apiTokenExpiry = 3600; // Token lifetime in seconds (default 1 hour)
 // --- CONFIGURATION END ---
 
 // Helper for Translation
@@ -124,35 +130,25 @@ if (!$configured) {
                 }
             }
 
-            // If we are here, connection is OK. Update this file.
+            // Connection is OK. Update this file dynamically.
             $content = file_get_contents(__FILE__);
             
-            // Build new config
-            $newConfig = "// --- CONFIGURATION START ---\n";
-            $newConfig .= "\$configured = true;\n";
-            $newConfig .= "\$dbType = '$type'; // Database type: 'sqlite', 'mysql', or 'pgsql'\n";
-            $newConfig .= "\$dbHost = '$host';\n";
-            $newConfig .= "\$dbName = '$name';\n";
-            $newConfig .= "\$dbUser = '$user';\n";
-            $newConfig .= "\$dbPass = '" . addslashes($pass) . "';\n";
-            $newConfig .= "\$dbPort = '$port'; // Optional: MySQL default 3306, PostgreSQL default 5432\n\n";
-            $newConfig .= "// Customize App Appearance\n";
-            $newConfig .= "\$appTitle = 'Direktorat SMP - URL Shortener'; // Nama Aplikasi\n";
-            $newConfig .= "\$appLogo = 'logo.png';       // Nama file logo (harus ada di folder yang sama)\n";
-            $newConfig .= "\$appFavicon = 'favicon.ico'; // Nama file favicon (harus ada di folder yang sama)\n";
-            $newConfig .= "\$appLang = 'id';             // Language: 'en' or 'id'\n\n";
-            $newConfig .= "// Database Optimization Settings\n";
-            $newConfig .= "\$enableIndexes = true;        // Enable automatic index creation (recommended: true)\n";
-            $newConfig .= "\$dataRetentionDays = 365;     // Keep visit data for X days (0 = keep forever, recommended: 365)\n";
-            $newConfig .= "\$enableDailySummary = true;   // Enable daily statistics summary table (recommended: true for >100K visits)\n";
-            $newConfig .= "\$autoArchiveOldData = false;  // Automatically archive old data (recommended: true for >1M visits)\n";
-            $newConfig .= "// --- CONFIGURATION END ---";
+            $updates = [
+                'configured' => 'true',
+                'dbType' => "'$type'",
+                'dbHost' => "'$host'",
+                'dbName' => "'$name'",
+                'dbUser' => "'$user'",
+                'dbPass' => "'$pass'",
+                'dbPort' => "'$port'"
+            ];
 
-            $pattern = '/\/\/ --- CONFIGURATION START ---.*?[\s\S].*?\/\/ --- CONFIGURATION END ---/s';
-            $replacement = str_replace('$', '\\$', $newConfig);
-            
-            $newContent = preg_replace($pattern, $replacement, $content);
-            
+            $newContent = $content;
+            foreach ($updates as $key => $val) {
+                $pattern = '/\$' . $key . '\s*=\s*.*?;/';
+                $newContent = preg_replace($pattern, '$' . $key . ' = ' . $val . ';', $newContent);
+            }
+
             if ($newContent === null || $newContent === $content) {
                 throw new Exception("Gagal mengupdate konfigurasi file.");
             }
@@ -280,6 +276,18 @@ try {
         $pdo->exec("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0");
         $pdo->exec("UPDATE users SET is_admin = 1 WHERE username = 'admin'");
     } catch (Exception $e) {}
+
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN api_key VARCHAR(64)");
+    } catch (Exception $e) {}
+    
+    // Ensure all users have an api_key
+    $stmt = $pdo->query("SELECT id FROM users WHERE api_key IS NULL OR api_key = ''");
+    $usersWithoutKey = $stmt->fetchAll();
+    foreach ($usersWithoutKey as $u) {
+        $key = bin2hex(random_bytes(16));
+        $pdo->prepare("UPDATE users SET api_key = ? WHERE id = ?")->execute([$key, $u['id']]);
+    }
 
     // Buat tabel urls
     if ($dbType === 'mysql') {
@@ -559,6 +567,237 @@ function renderHeader($title) {
 
 function renderFooter() {
     echo "</body></html>";
+}
+
+// 0. API Endpoint (Query String)
+if ($uri === BASE_PATH . '/api.php' || $uri === BASE_PATH . '/api-shorten') {
+    if (!$apiEnabled) {
+        http_response_code(403);
+        die("ERROR: API is disabled.");
+    }
+
+    // Security Check: User-Agent
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $isAllowedUA = false;
+    $allowedUAs = explode(',', $apiAllowedUserAgents);
+    foreach ($allowedUAs as $allowed) {
+        if (stripos($ua, trim($allowed)) !== false) {
+            $isAllowedUA = true;
+            break;
+        }
+    }
+    if (!$isAllowedUA) {
+        http_response_code(403);
+        die("ERROR: Access Denied (User-Agent).");
+    }
+
+    // Security Check: IP Whitelist
+    if (!empty($apiAllowedIPs)) {
+        $clientIP = $_SERVER['REMOTE_ADDR'];
+        $allowedIPs = explode(',', $apiAllowedIPs);
+        if (!in_array($clientIP, array_map('trim', $allowedIPs))) {
+            http_response_code(403);
+            die("ERROR: Access Denied (IP).");
+        }
+    }
+
+    // Security Check: Token (ids) or Session
+    $token = $_GET['ids'] ?? '';
+    $identifiedUser = null;
+
+    if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+        // Option 1: Logged in session
+        $identifiedUser = [
+            'id' => $_SESSION['user_id'],
+            'username' => $_SESSION['username'],
+            'api_key' => '' // We don't need the key for session-based access
+        ];
+    } elseif (!empty($token)) {
+        // Option 2: Token-based
+        // Support both static API Key and Dynamic Token
+        
+        // Find user by static key first
+        $stmt = $pdo->prepare("SELECT id, username, api_key FROM users WHERE api_key = ?");
+        $stmt->execute([$token]);
+        $user = $stmt->fetch();
+        
+        if ($user) {
+            $identifiedUser = $user;
+        } else {
+            // Try as Dynamic Token: base64_encode(timestamp . ":" . hmac(timestamp, user_api_key))
+            $decoded = base64_decode($token);
+            if ($decoded && strpos($decoded, ':') !== false) {
+                list($ts, $hash) = explode(':', $decoded, 2);
+                if (abs(time() - (int)$ts) <= $apiTokenExpiry) {
+                    // We need to find which user this token belongs to. 
+                    // To do this efficiently, we might need a uid parameter, 
+                    // but if not provided, we must check all users (not recommended for large DBs).
+                    // For now, let's look for a user ID hint in the token or just check all (small scale).
+                    $stmtAll = $pdo->query("SELECT id, username, api_key FROM users");
+                    while ($userCandidate = $stmtAll->fetch()) {
+                        $expectedHash = hash_hmac('sha256', (string)$ts, $userCandidate['api_key']);
+                        if (hash_equals($expectedHash, $hash)) {
+                            $identifiedUser = $userCandidate;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!$identifiedUser) {
+        http_response_code(403);
+        die("ERROR: Invalid or expired token (ids required if not logged in).");
+    }
+
+    // Parameters
+    $longUrl = $_GET['longurl'] ?? '';
+    $unique = $_GET['unique'] ?? '';
+
+    if (empty($longUrl) || !filter_var($longUrl, FILTER_VALIDATE_URL)) {
+        http_response_code(400);
+        die("ERROR: Invalid longurl.");
+    }
+
+    if (empty($unique)) {
+        $unique = generateCode();
+    } else {
+        // Validasi short code
+        if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $unique)) {
+            http_response_code(400);
+            die("ERROR: Invalid unique code format.");
+        }
+        // Cek duplikat
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
+        $stmt->execute([$unique]);
+        if ($stmt->fetchColumn() > 0) {
+            http_response_code(400);
+            die("ERROR: Unique code already taken.");
+        }
+    }
+
+    // Save
+    try {
+        $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
+        $stmt->execute([$longUrl, $unique, $identifiedUser['id']]);
+        
+        $baseUrl = getBaseUrl();
+        echo $baseUrl . BASE_PATH . "/" . $unique;
+        exit;
+    } catch (Exception $e) {
+        http_response_code(500);
+        die("ERROR: " . $e->getMessage());
+    }
+}
+
+// 0.5 API Settings Page
+if ($uri === BASE_PATH . '/api') {
+    if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in'] || empty($_SESSION['is_admin'])) {
+        header('Location: ' . BASE_PATH . '/login');
+        exit;
+    }
+
+    if ($method === 'POST') {
+        validateCsrf();
+        
+        if (isset($_POST['regenerate_my_key'])) {
+            $newKey = bin2hex(random_bytes(16));
+            $stmt = $pdo->prepare("UPDATE users SET api_key = ? WHERE id = ?");
+            $stmt->execute([$newKey, $_SESSION['user_id']]);
+            header('Location: ' . BASE_PATH . '/api?updated=1');
+            exit;
+        }
+
+        $enabled = isset($_POST['api_enabled']) ? 'true' : 'false';
+        $uas = $_POST['api_allowed_ua'] ?? $apiAllowedUserAgents;
+        $ips = $_POST['api_allowed_ips'] ?? $apiAllowedIPs;
+        $expiry = $_POST['api_expiry'] ?? $apiTokenExpiry;
+
+        // Self-modify config
+        $content = file_get_contents(__FILE__);
+        
+        $configs = [
+            'apiEnabled' => $enabled,
+            'apiAllowedUserAgents' => "'$uas'",
+            'apiAllowedIPs' => "'$ips'",
+            'apiTokenExpiry' => (int)$expiry
+        ];
+
+        foreach ($configs as $key => $val) {
+            $pattern = '/\$' . $key . '\s*=\s*.*?;/';
+            $content = preg_replace($pattern, '$' . $key . ' = ' . $val . ';', $content);
+        }
+
+        file_put_contents(__FILE__, $content);
+        header('Location: ' . BASE_PATH . '/api?updated=1');
+        exit;
+    }
+
+    // Get current user's API key
+    $stmt = $pdo->prepare("SELECT api_key FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $currentUserKey = $stmt->fetchColumn();
+
+    renderHeader(__('api_title'));
+    echo "<nav class='navbar is-info' style='background-color: #007bff;'><div class='container'><div class='navbar-brand'><a class='navbar-item' href='" . BASE_PATH . "/admin'><b>&larr; " . __('back_dashboard') . "</b></a></div></div></nav>";
+
+    echo "<section class='section'><div class='container'><div class='columns is-centered'><div class='column is-8'>";
+    echo "<h1 class='title'>" . __('api_title') . "</h1>";
+    
+    if (isset($_GET['updated'])) echo "<div class='notification is-success'>Settings updated.</div>";
+
+    // User's API Key Section
+    echo "<div class='box'><h3 class='title is-5'>" . __('your_api_key') . "</h3>";
+    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input' type='text' value='$currentUserKey' readonly id='myApiKey'></div>";
+    echo "<div class='control'><button class='button is-info' onclick='copyToClipboard(document.getElementById(\"myApiKey\").value)'>" . __('copy') . "</button></div></div>";
+    echo "<form method='post' onsubmit='return confirm(\"" . __('confirm_regen_key') . "\")'><input type='hidden' name='regenerate_my_key' value='1'>";
+    echo csrfField();
+    echo "<button class='button is-warning is-small mt-2' type='submit'>" . __('regen_key_btn') . "</button></form>";
+    echo "</div>";
+
+    // Global Admin Settings (Only shown to admin)
+    echo "<div class='box'><h3 class='title is-5'>" . __('global_api_settings') . "</h3>";
+    echo "<form method='post'>";
+    echo csrfField();
+    echo "<div class='field'><label class='checkbox'><input type='checkbox' name='api_enabled' " . ($apiEnabled ? 'checked' : '') . "> " . __('api_enabled') . "</label></div>";
+    echo "<div class='field'><label class='label'>" . __('api_allowed_ua') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ua' value='$apiAllowedUserAgents'></div><p class='help'>Comma separated.</p></div>";
+    echo "<div class='field'><label class='label'>" . __('api_allowed_ips') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ips' value='$apiAllowedIPs'></div><p class='help'>Comma separated (empty for all).</p></div>";
+    echo "<div class='field'><label class='label'>" . __('api_expiry') . "</label><div class='control'><input class='input' type='number' name='api_expiry' value='$apiTokenExpiry'></div></div>";
+    echo "<div class='field mt-5'><button class='button is-primary is-fullwidth' type='submit'>" . __('save_pass') . "</button></div>";
+    echo "</form>";
+    echo "</div>";
+
+    // Example URL Section
+    $ts = time();
+    $hash = hash_hmac('sha256', (string)$ts, $currentUserKey);
+    $testToken = base64_encode($ts . ":" . $hash);
+    $baseUrl = getBaseUrl();
+    
+    // Dynamic Token URL (Recommended)
+    $exampleUrlToken = $baseUrl . BASE_PATH . "/api-shorten?ids=" . $testToken . "&longurl=https://google.com&unique=test" . rand(100,999);
+    // Session-based URL (Optional)
+    $exampleUrlSession = $baseUrl . BASE_PATH . "/api-shorten?longurl=https://google.com&unique=test_session" . rand(100,999);
+
+    echo "<div class='box'><h3 class='title is-5'>" . __('api_usage_url') . "</h3>";
+    
+    echo "<label class='label is-small'>" . __('example_token_url') . "</label>";
+    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExample' value='$exampleUrlToken' readonly></div>";
+    echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExample\").value)'>" . __('copy') . "</button></div></div>";
+    echo "<p class='help mb-3'>Token dynamic valid $apiTokenExpiry sec.</p>";
+
+    echo "<label class='label is-small'>" . __('example_session_url') . "</label>";
+    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExampleSession' value='$exampleUrlSession' readonly></div>";
+    echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExampleSession\").value)'>" . __('copy') . "</button></div></div>";
+    echo "<p class='help mb-3'>" . __('session_url_help') . "</p>";
+
+    echo "<a href='$exampleUrlToken' target='_blank' class='button is-small is-link is-outlined'>" . __('api_test') . "</a>";
+    echo "</div>";
+
+    echo "</div></div></div></section>";
+    echo "<script>function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { alert('" . __('link_copied') . "'); }); }</script>";
+    renderFooter();
+    exit;
 }
 
 // ROUTING LOGIC
@@ -1125,23 +1364,27 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<div id='navbarBasic' class='navbar-menu'>";
     echo "<div class='navbar-end'>";
     echo "<div class='navbar-item'>" . __('hello') . ", $username</div>";
+    
     echo "<div class='navbar-item'>";
     echo "<div class='buttons'>";
-    echo "<a class='button is-light is-small is-outlined' href='" . BASE_PATH . "/logout'>" . __('logout') . "</a>";
-    echo "</div>";
-    echo "</div>";
     
-    // Add Manage Users Link for Admin
+    // Admin buttons
     if (!empty($_SESSION['is_admin'])) {
-        echo "<div class='navbar-item'>";
         echo "<a class='button is-warning is-small' href='" . BASE_PATH . "/users'>";
         echo "<span class='icon is-small'><i class='fas fa-users-cog'></i></span>";
         echo "<span>" . __('manage_users') . "</span>";
         echo "</a>";
-        echo "</div>";
+        echo "<a class='button is-success is-small' href='" . BASE_PATH . "/api'>";
+        echo "<span class='icon is-small'><i class='fas fa-code'></i></span>";
+        echo "<span>" . __('api_manage') . "</span>";
         echo "</a>";
-        echo "</div>";
     }
+    
+    // Logout button (Rightmost)
+    echo "<a class='button is-light is-small is-outlined' href='" . BASE_PATH . "/logout'>" . __('logout') . "</a>";
+    
+    echo "</div>"; // buttons
+    echo "</div>"; // navbar-item
 
     echo "</div>"; // navbar-end
     echo "</div>"; // navbar-menu
@@ -1735,7 +1978,23 @@ function getTranslations() {
             'register_btn' => 'Register',
             'have_account' => 'Already have an account?',
             'username_col' => 'Username',
-            'action_col' => 'Actions'
+            'action_col' => 'Actions',
+            'api_title' => 'API Settings',
+            'api_enabled' => 'Enable API',
+            'api_secret' => 'API Secret Key',
+            'api_allowed_ua' => 'Allowed User Agents',
+            'api_allowed_ips' => 'Allowed IP Whitelist',
+            'api_expiry' => 'Token Expiry (seconds)',
+            'api_usage_url' => 'Example API URL',
+            'api_test' => 'Test API',
+            'api_manage' => 'Manage API',
+            'your_api_key' => 'Your Personal API Key',
+            'confirm_regen_key' => 'Are you sure you want to regenerate your API key? All your existing static links will stop working!',
+            'regen_key_btn' => 'Regenerate API Key',
+            'global_api_settings' => 'Global API Restrictions',
+            'example_token_url' => 'Ready-to-use URL (Dynamic Token)',
+            'example_session_url' => 'Ready-to-use URL (Session Only)',
+            'session_url_help' => 'This link only works while you are logged in to this browser.'
         ],
         'id' => [
             'setup_wizard' => 'Setup Wizard',
@@ -1852,7 +2111,23 @@ function getTranslations() {
             'register_btn' => 'Daftar',
             'have_account' => 'Sudah punya akun?',
             'username_col' => 'Username',
-            'action_col' => 'Aksi'
+            'action_col' => 'Aksi',
+            'api_title' => 'Pengaturan API',
+            'api_enabled' => 'Aktifkan API',
+            'api_secret' => 'Kunci Rahasia API',
+            'api_allowed_ua' => 'User Agent yang Diizinkan',
+            'api_allowed_ips' => 'IP Whitelist yang Diizinkan',
+            'api_expiry' => 'Masa Berlaku Token (detik)',
+            'api_usage_url' => 'Contoh URL API',
+            'api_test' => 'Test API',
+            'api_manage' => 'Kelola API',
+            'your_api_key' => 'Kunci API Pribadi Anda',
+            'confirm_regen_key' => 'Yakin ingin meregenerasi kunci API Anda? Semua link statis lama Anda tidak akan berfungsi lagi!',
+            'regen_key_btn' => 'Regenerasi Kunci API',
+            'global_api_settings' => 'Pembatasan API Global',
+            'example_token_url' => 'URL Siap Pakai (Token Dinamis)',
+            'example_session_url' => 'URL Siap Pakai (Sesi Aktif)',
+            'session_url_help' => 'Link ini hanya berfungsi selama Anda login di browser ini.'
         ]
     ];
 }

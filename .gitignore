@@ -1,6 +1,6 @@
 # Database files
 *.sqlite
-*.sqlite3
+*.sqlite
 *.db
 
 # Environment and configuration

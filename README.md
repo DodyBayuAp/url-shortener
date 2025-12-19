@@ -59,6 +59,12 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 - **PostgreSQL**: Enterprise-grade performance
 - Auto-creates indexes for optimal query performance
 
+### 🔌 **API & Integration**
+- **Per-User API Keys**: Each user gets a unique key for API access
+- **Flexible Authentication**: Supports Static Keys, Dynamic HMAC Tokens, and Session-based access
+- **Plain Text Output**: Optimized for Google Sheets `IMPORTDATA`
+- **Whitelisting**: Configurable IP and User-Agent restrictions
+
 ### 🎨 **Modern Interface**
 - Clean, responsive design with Bulma CSS
 - Mobile-friendly dashboard
@@ -79,6 +85,7 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 
 ### 🎁 **Bonus Features**
 - **QR Code Generation**: Instant QR codes for all short links
+- **API Access**: Robust endpoint for shortening URLs externally (Google Sheets, bots, etc.)
 - **User Management**: Multi-user support with role-based access
 - **Custom Short Codes**: Use your own memorable codes (supports `a-z`, `0-9`, `-`, `_`)
 - **Bulk Operations**: Manage multiple URLs efficiently

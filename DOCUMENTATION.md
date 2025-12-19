@@ -30,6 +30,7 @@ Stores administrator and user credentials.
 | `id` | INT/SERIAL (PK) | Unique User ID |
 | `username` | VARCHAR(50) | Login username (Unique) |
 | `password` | TEXT | Bcrypt hashed password |
+| `api_key` | TEXT | Unique API Key for authentication |
 | `is_admin` | INT | Flag (0/1) for admin status |
 | `force_change_password` | INT | Flag (0/1) to force password reset |
 
@@ -91,6 +92,15 @@ $dbPass = '';
 $dbPort = '';  // Optional: 3306 for MySQL, 5432 for PostgreSQL
 ```
 
+### API Settings
+
+```php
+$apiEnabled = true;
+$apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // Allowed UAs (comma separated)
+$apiAllowedIPs = ''; // Allowed IPs (comma separated, empty = all)
+$apiTokenExpiry = 3600; // Token lifetime in seconds
+```
+
 ### Optimization Settings
 
 ```php
@@ -143,8 +153,31 @@ Translation helper function that retrieves localized strings based on `$appLang`
 *   **Session Security**: Sessions are configured with `HttpOnly`, `Secure` (if HTTPS), and `SameSite=Strict` attributes.
 *   **Input Validation**: URLs are validated using `filter_var()`. Outputs are escaped using `htmlspecialchars()` to prevent XSS.
 *   **Password Hashing**: Uses `password_hash()` with `PASSWORD_BCRYPT`.
+*   **API Security**: Supports per-user keys and HMAC-SHA256 dynamic tokens to prevent token reuse and exposure.
 
-## 🎨 Customization
+## 🔌 API Usage & Integration
+
+The application provides a robust API for programmatic URL shortening.
+
+### Endpoints
+- `POST/GET` `/api-shorten` (Recommended)
+- `POST/GET` `/api.php` (Legacy alias)
+
+### Authentication Methods
+
+#### 1. Static API Key
+Send your personal API key via the `ids` parameter.
+`GET /api-shorten?ids=YOUR_API_KEY&longurl=https://example.com`
+
+#### 2. Dynamic HMAC Token (Highly Secure)
+Generate a token using `base64_encode(timestamp . ":" . hmac_sha256(timestamp, api_key))`.
+`GET /api-shorten?ids=DYNAMIC_TOKEN&longurl=https://example.com`
+
+#### 3. Session-based
+If logged into the dashboard, the API can be used without tokens.
+
+### Response
+Returns the shortened URL as plain text (e.g., `https://u.com/abc`) or an error message starting with `ERROR:`.
 
 ### Changing the Logo
 Replace `logo.png` in the root directory with your own image. Update the filename in `index.php` if necessary.

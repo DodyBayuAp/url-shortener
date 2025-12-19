@@ -61,6 +61,12 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 - **PostgreSQL**: Performa tingkat enterprise
 - Otomatis membuat index untuk performa query optimal
 
+### 🔌 **API & Integrasi**
+- **API Key Individual**: Setiap user mendapatkan kunci unik untuk akses API
+- **Autentikasi Fleksibel**: Mendukung Static Key, Dynamic HMAC Token, dan akses berbasis Sesi
+- **Output Plain Text**: Dioptimalkan untuk `IMPORTDATA` Google Sheets
+- **Whitelisting**: Pembatasan IP dan User-Agent yang dapat dikonfigurasi
+
 ### 🎨 **Interface Modern**
 - Desain bersih dan responsif dengan Bulma CSS
 - Dashboard mobile-friendly
@@ -81,6 +87,7 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 
 ### 🎁 **Fitur Bonus**
 - **Generasi QR Code**: QR code instan untuk semua short link
+- **Akses API**: Endpoint robust untuk pemendekan URL secara eksternal (Google Sheets, bot, dll)
 - **Manajemen User**: Dukungan multi-user dengan role-based access
 - **Custom Short Code**: Gunakan kode Anda sendiri (mendukung `a-z`, `0-9`, `-`, `_`)
 - **Operasi Bulk**: Kelola banyak URL secara efisien

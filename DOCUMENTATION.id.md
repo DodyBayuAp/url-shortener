@@ -30,6 +30,7 @@ Menyimpan kredensial administrator dan pengguna.
 | `id` | INT/SERIAL (PK) | ID Pengguna Unik |
 | `username` | VARCHAR(50) | Username Login (Unik) |
 | `password` | TEXT | Password yang di-hash dengan Bcrypt |
+| `api_key` | TEXT | API Key unik untuk autentikasi |
 | `is_admin` | INT | Flag (0/1) untuk status admin |
 | `force_change_password` | INT | Flag (0/1) untuk memaksa reset password |
 
@@ -91,6 +92,15 @@ $dbPass = '';
 $dbPort = '';  // Opsional: 3306 untuk MySQL, 5432 untuk PostgreSQL
 ```
 
+### Pengaturan API
+
+```php
+$apiEnabled = true;
+$apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // UA yang diperbolehkan (pisahkan dengan koma)
+$apiAllowedIPs = ''; // IP yang diperbolehkan (kosong = semua)
+$apiTokenExpiry = 3600; // Masa berlaku token dalam detik
+```
+
 ### Pengaturan Optimasi
 
 ```php
@@ -143,8 +153,31 @@ Fungsi helper untuk mengambil string terjemahan berdasarkan pengaturan `$appLang
 *   **Keamanan Sesi**: Sesi dikonfigurasi dengan atribut `HttpOnly`, `Secure` (jika HTTPS), dan `SameSite=Strict`.
 *   **Validasi Input**: URL divalidasi menggunakan `filter_var()`. Output di-escape menggunakan `htmlspecialchars()` untuk mencegah XSS.
 *   **Hash Password**: Menggunakan `password_hash()` dengan `PASSWORD_BCRYPT`.
+*   **Keamanan API**: Mendukung kunci per-pengguna dan token dinamis HMAC-SHA256 untuk mencegah penggunaan ulang dan eksposur token.
 
-## 🎨 Kustomisasi
+## 🔌 Penggunaan & Integrasi API
+
+Aplikasi ini menyediakan API yang robust untuk pemendekan URL secara programatik.
+
+### Endpoint
+- `POST/GET` `/api-shorten` (Direkomendasikan)
+- `POST/GET` `/api.php` (Alias legacy)
+
+### Metode Autentikasi
+
+#### 1. API Key Statis
+Kirimkan API key pribadi Anda melalui parameter `ids`.
+`GET /api-shorten?ids=KUNCI_API_ANDA&longurl=https://example.com`
+
+#### 2. Token HMAC Dinamis (Sangat Aman)
+Buat token menggunakan `base64_encode(timestamp . ":" . hmac_sha256(timestamp, api_key))`.
+`GET /api-shorten?ids=TOKEN_DINAMIS&longurl=https://example.com`
+
+#### 3. Berbasis Sesi
+Jika Anda sudah login ke dashboard, API dapat digunakan tanpa token.
+
+### Respons
+Mengembalikan URL yang telah dipendekkan sebagai plain text (contoh: `https://u.com/abc`) atau pesan error yang dimulai dengan `ERROR:`.
 
 ### Mengubah Logo
 Ganti `logo.png` di direktori root dengan gambar Anda sendiri. Perbarui nama file di `index.php` jika perlu.
