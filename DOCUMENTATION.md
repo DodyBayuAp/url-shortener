@@ -97,6 +97,8 @@ $dbPort = '';  // Optional: 3306 for MySQL, 5432 for PostgreSQL
 
 ```php
 $apiEnabled = true;
+$apiAuthType = 'jwt'; // Options: 'api_key', 'jwt', 'paseto'
+$apiSecret = '...'; // Secret for JWT/PASETO signing
 $apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // Allowed UAs (comma separated)
 $apiAllowedIPs = ''; // Allowed IPs (comma separated, empty = all)
 $apiTokenExpiry = 3600; // Token lifetime in seconds
@@ -158,27 +160,45 @@ Translation helper function that retrieves localized strings based on `$appLang`
 
 ## 🔌 API Usage & Integration
 
-The application provides a robust API for programmatic URL shortening.
+The application provides a robust API for programmatic URL shortening, managed via the **API Settings** page in the dashboard.
+
+### 📚 Interactive Documentation (Swagger UI)
+The easiest way to explore and test the API is using the built-in Swagger UI.
+- **URL**: `http://your-site.com/api/docs`
+- **Spec File**: `http://your-site.com/api-docs.json` (Auto-generated)
 
 ### Endpoints
-- `POST/GET` `/api-shorten` (Recommended)
-- `POST/GET` `/api.php` (Legacy alias)
+- `POST /api/login`: Authenticate and receive a token (JWT/PASETO).
+- `POST /api/shorten`: Create a short URL.
+- `GET /api/urls`: List your URLs.
+- `GET /api/stats`:Get statistics for a specific URL.
+- `POST /api/update`: Update a short URL.
+- `POST /api/delete`: Delete a short URL.
 
 ### Authentication Methods
+You can configure the authentication method in the **API Manager** (`/api`) dashboard.
 
-#### 1. Static API Key
-Send your personal API key via the `ids` parameter.
-`GET /api-shorten?ids=YOUR_API_KEY&longurl=https://example.com`
+#### 1. API Key (Legacy)
+Simple key-based authentication. Good for simple scripts.
+- **Header**: Not required (passed as query param).
+- **Query Param**: `?ids=YOUR_API_KEY`
+- **Example**: `POST /api/shorten?ids=xyz123&longurl=https://google.com`
 
-#### 2. Dynamic HMAC Token (Highly Secure)
-Generate a token using `base64_encode(timestamp . ":" . hmac_sha256(timestamp, api_key))`.
-`GET /api-shorten?ids=DYNAMIC_TOKEN&longurl=https://example.com`
+#### 2. JWT (JSON Web Token)
+Standard secure token authentication.
+1.  **Login**: `POST /api/login` with `{"username":"admin", "password":"..."}`.
+2.  **Receive**: Get a `token` in the JSON response.
+3.  **Use**: Send header `Authorization: Bearer <your_token>` in subsequent requests.
 
-#### 3. Session-based
-If logged into the dashboard, the API can be used without tokens.
+#### 3. PASETO (Platform-Agnostic Security Tokens)
+A more secure alternative to JWT (Version 2, Local).
+- Usage is identical to JWT (Login -> Bearer Token).
+- Requires `sodium` PHP extension.
 
 ### Response
-Returns the shortened URL as plain text (e.g., `https://u.com/abc`) or an error message starting with `ERROR:`.
+- **Success (200)**: JSON object (e.g., `{"status":200, "message":"OK", "data": [...]}`).
+- **Legacy Support**: `/api/shorten` returns plain text short URL if successful (for Google Sheets compatibility).
+- **Error (4xx/5xx)**: JSON object with `status` and `message`.
 
 ### Changing the Logo
 Replace `logo.png` in the root directory with your own image. Update the filename in `index.php` if necessary.

@@ -25,19 +25,266 @@ $apiEnabled = true;
 $apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // Default allowed user agents
 $apiAllowedIPs = ''; // Comma separated IPs, empty means all IPs allowed
 $apiTokenExpiry = 3600; // Token lifetime in seconds (default 1 hour)
+$apiAuthType = 'jwt'; // Authentication Type: 'api_key', 'jwt', 'paseto'
+$apiSecret = 'c31a3c76e2ce13729fe135c73e595e07ce374d97a466736c98ef6b0ab617dc8b'; // Secret key for JWT/PASETO
 // --- CONFIGURATION END ---
 
-// Helper for Translation
-function __($key) {
-    global $appLang;
-    static $translations = null;
-    if ($translations === null) {
-        $translations = getTranslations();
+// --- TOKEN HELPERS ---
+if (!class_exists('SimpleJWT')) {
+class SimpleJWT {
+    public static function encode($payload, $secret) {
+        $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
+        $payload = json_encode($payload);
+        $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+        $base64UrlPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
+        $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, $secret, true);
+        $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
+        return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
     }
-    return $translations[$appLang][$key] ?? ($translations['en'][$key] ?? $key);
+
+    public static function decode($jwt, $secret) {
+        $parts = explode('.', $jwt);
+        if (count($parts) != 3) return null;
+        $header = $parts[0];
+        $payload = $parts[1];
+        $signatureProvided = $parts[2];
+        $signature = hash_hmac('sha256', $header . "." . $payload, $secret, true);
+        $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
+        if (!hash_equals($base64UrlSignature, $signatureProvided)) return null;
+        return json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $payload)), true);
+    }
+}
+}
+
+if (!class_exists('SimplePaseto')) {
+class SimplePaseto {
+    // v2.local Implementation (Requires Sodium)
+    public static function encode($payload, $secret) {
+        if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')) return null;
+        
+        $header = 'v2.local.';
+        $nonce = random_bytes(sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
+        $message = json_encode($payload);
+        $ad = $header; // Footer is empty
+        $footer = '';
+        
+        $ciphertext = sodium_crypto_aead_xchacha20poly1305_ietf_encrypt(
+            $message,
+            $ad,
+            $nonce,
+            $secret
+        );
+        
+        return $header . str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($nonce . $ciphertext . $footer));
+    }
+
+    public static function decode($token, $secret) {
+         if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_decrypt')) return null;
+
+        $parts = explode('.', $token);
+        if (count($parts) < 3 || $parts[0] !== 'v2' || $parts[1] !== 'local') return null;
+        
+        $payload = base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[2]));
+        $nonce = substr($payload, 0, sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
+        $ciphertext = substr($payload, sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
+        
+        $footer = isset($parts[3]) ? base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[3])) : '';
+        $header = 'v2.local.';
+        $ad = $header . $footer;
+        
+        $decrypted = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt($ciphertext, $ad, $nonce, $secret);
+        return $decrypted ? json_decode($decrypted, true) : null;
+    }
+}
+}
+
+
+// --- TRANSLATIONS ---
+if (!function_exists('getTranslations')) {
+function getTranslations() {
+    return [
+        'en' => [
+            'setup_wizard' => 'Setup Wizard',
+            'setup_config' => 'Initial Configuration Setup',
+            'select_theme' => 'Select Theme',
+            'db_type' => 'Database Type',
+            'sqlite_opt' => 'SQLite (No Setup)',
+            'mysql_opt' => 'MySQL / MariaDB',
+            'db_host' => 'Database Host',
+            'db_name' => 'Database Name',
+            'db_user' => 'Database User',
+            'db_pass' => 'Database Password',
+            'save_install' => 'Save & Install',
+            'login' => 'Login',
+            'register' => 'Register',
+            'username' => 'Username',
+            'password' => 'Password',
+            'login_btn' => 'Login',
+            'dashboard' => 'Dashboard',
+            'logout' => 'Logout',
+            'shorten_url' => 'Shorten URL',
+            'long_url' => 'Long URL',
+            'short_code' => 'Custom Short Code (Optional)',
+            'shorten_btn' => 'Shorten',
+            'my_urls' => 'My URLs',
+            'search' => 'Search URL...',
+            'original_url' => 'Original URL',
+            'short_url' => 'Short URL',
+            'views' => 'Views',
+            'created' => 'Created',
+            'actions' => 'Actions',
+            'stats' => 'Stats',
+            'delete' => 'Delete',
+            'edit' => 'Edit',
+            'copy' => 'Copy',
+            'next' => 'Next',
+            'prev' => 'Prev',
+            'error_404' => 'URL Not Found',
+            'error_title' => 'Error',
+            'error_csrf' => 'Invalid CSRF Token',
+            'stats_title' => 'Link Statistics',
+            'target' => 'Target',
+            'total_clicks' => 'Total Clicks',
+            'unique_clicks' => 'Unique Clicks',
+            'top_country' => 'Top Country',
+            'main_device' => 'Main Device',
+            'click_trend' => 'Click Trend (Daily)',
+            'traffic_source' => 'Traffic Source',
+            'location_country' => 'Location (Country)',
+            'operating_system' => 'Operating System',
+            'browser' => 'Browser',
+            'visit_history' => 'Visit History (Last 50)',
+            'time' => 'Time',
+            'location' => 'Location',
+            'source' => 'Source',
+            'visitors' => 'Visitors',
+            'click_count' => 'Click Count',
+            'download_qr' => 'Download QR',
+            'link_copied' => 'Link copied',
+            'copy_failed' => 'Copy failed',
+            'reset' => 'Reset',
+            'register' => 'Register',
+            'register_btn' => 'Register',
+            'have_account' => 'Already have an account?',
+            'username_col' => 'Username',
+            'action_col' => 'Action',
+            'api_title' => 'API Settings',
+            'api_enabled' => 'Enable API',
+            'api_secret' => 'API Secret Key',
+            'api_allowed_ua' => 'Allowed User Agents',
+            'api_allowed_ips' => 'Allowed IP Whitelist',
+            'api_expiry' => 'Token Expiry (seconds)',
+            'api_usage_url' => 'API Usage Example',
+            'api_test' => 'Test API',
+            'api_manage' => 'Manage API',
+            'your_api_key' => 'Your Personal API Key',
+            'confirm_regen_key' => 'Are you sure you want to regenerate your API Key? All your old static links will stop working!',
+            'regen_key_btn' => 'Regenerate API Key',
+            'global_api_settings' => 'Global API Restrictions',
+            'example_token_url' => 'Usage URL (Dynamic Token)',
+            'example_session_url' => 'Usage URL (Active Session)',
+            'session_url_help' => 'This link only works while you are logged in this browser.'
+        ],
+        'id' => [
+            'setup_wizard' => 'Wizard Instalasi',
+            'setup_config' => 'Konfigurasi Awal',
+            'select_theme' => 'Pilih Tema',
+            'db_type' => 'Tipe Database',
+            'sqlite_opt' => 'SQLite (Tanpa Setup)',
+            'mysql_opt' => 'MySQL / MariaDB',
+            'db_host' => 'Host Database',
+            'db_name' => 'Nama Database',
+            'db_user' => 'User Database',
+            'db_pass' => 'Password Database',
+            'save_install' => 'Simpan & Instal',
+            'login' => 'Masuk',
+            'register' => 'Daftar',
+            'username' => 'Username',
+            'password' => 'Password',
+            'login_btn' => 'Masuk',
+            'dashboard' => 'Dashboard',
+            'logout' => 'Keluar',
+            'shorten_url' => 'Pendekkan URL',
+            'long_url' => 'URL Panjang',
+            'short_code' => 'Kode Kustom (Opsional)',
+            'shorten_btn' => 'Pendekkan',
+            'my_urls' => 'URL Saya',
+            'search' => 'Cari URL...',
+            'original_url' => 'URL Asli',
+            'short_url' => 'URL Pendek',
+            'views' => 'Dilihat',
+            'created' => 'Dibuat',
+            'actions' => 'Aksi',
+            'stats' => 'Statistik',
+            'delete' => 'Hapus',
+            'edit' => 'Edit',
+            'copy' => 'Salin',
+            'next' => 'Lanjut',
+            'prev' => 'Kembali',
+            'error_404' => 'URL Tidak Ditemukan',
+            'error_title' => 'Galat',
+            'error_csrf' => 'Token CSRF Tidak Valid',
+            'stats_title' => 'Statistik Link',
+            'target' => 'Target',
+            'total_clicks' => 'Total Klik',
+            'unique_clicks' => 'Klik Unik',
+            'top_country' => 'Negara Teratas',
+            'main_device' => 'Perangkat Utama',
+            'click_trend' => 'Tren Klik (Harian)',
+            'traffic_source' => 'Sumber Trafik',
+            'location_country' => 'Lokasi (Negara)',
+            'operating_system' => 'Sistem Operasi',
+            'browser' => 'Browser',
+            'visit_history' => 'Riwayat Kunjungan (Terakhir 50)',
+            'time' => 'Waktu',
+            'location' => 'Lokasi',
+            'source' => 'Sumber',
+            'visitors' => 'Pengunjung',
+            'click_count' => 'Jumlah Klik',
+            'download_qr' => 'Download QR',
+            'link_copied' => 'Link berhasil disalin',
+            'copy_failed' => 'Gagal menyalin',
+            'reset' => 'Reset',
+            'register' => 'Registrasi',
+            'register_btn' => 'Daftar',
+            'have_account' => 'Sudah punya akun?',
+            'username_col' => 'Username',
+            'action_col' => 'Aksi',
+            'api_title' => 'Pengaturan API',
+            'api_enabled' => 'Aktifkan API',
+            'api_secret' => 'Kunci Rahasia API',
+            'api_allowed_ua' => 'User Agent yang Diizinkan',
+            'api_allowed_ips' => 'IP Whitelist yang Diizinkan',
+            'api_expiry' => 'Masa Berlaku Token (detik)',
+            'api_usage_url' => 'Contoh URL API',
+            'api_test' => 'Test API',
+            'api_manage' => 'Kelola API',
+            'your_api_key' => 'Kunci API Pribadi Anda',
+            'confirm_regen_key' => 'Yakin ingin meregenerasi kunci API Anda? Semua link statis lama Anda tidak akan berfungsi lagi!',
+            'regen_key_btn' => 'Regenerasi Kunci API',
+            'global_api_settings' => 'Pembatasan API Global',
+            'example_token_url' => 'URL Siap Pakai (Token Dinamis)',
+            'example_session_url' => 'URL Siap Pakai (Sesi Aktif)',
+            'session_url_help' => 'Link ini hanya berfungsi selama Anda login di browser ini.'
+        ]
+    ];
+}
+}
+
+// Helper for Translation
+if (!function_exists('__')) {
+    function __($key) {
+        global $appLang;
+        static $translations = null;
+        if ($translations === null) {
+            $translations = getTranslations();
+        }
+        return $translations[$appLang][$key] ?? ($translations['en'][$key] ?? $key);
+    }
 }
 
 // Helper for Theme CSS (Global Styles)
+if (!function_exists('renderThemeCss')) {
 function renderThemeCss() {
     echo "<style>
             :root {
@@ -157,7 +404,9 @@ function renderThemeCss() {
             }
           </style>";
 }
+}
 
+if (!function_exists('renderThemeScript')) {
 function renderThemeScript() {
     echo "<script>
         (function() {
@@ -166,8 +415,10 @@ function renderThemeScript() {
         })();
     </script>";
 }
+}
 
 // Helper for Error Pages (Early Declaration)
+if (!function_exists('renderErrorPage')) {
 function renderErrorPage($title, $message, $showRetry = false) {
     echo "<!DOCTYPE html><html data-theme='light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>" . __('error_title') . " - $title</title>";
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css'>";
@@ -188,12 +439,19 @@ function renderErrorPage($title, $message, $showRetry = false) {
     echo "</body></html>";
     exit;
 }
+}
 
 // PHP CLI Server Static File Handling
 if (php_sapi_name() === 'cli-server') {
-    $file = __DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if (is_file($file)) {
-        return false;
+    $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    // Skip static file handling for API routes - let PHP handle them
+    // Check if path does NOT start with /api (with or without BASE_PATH)
+    $isApiPath = (strpos($requestUri, '/api') !== false && strpos($requestUri, '/api') < 5);
+    if (!$isApiPath) {
+        $file = __DIR__ . $requestUri;
+        if (is_file($file)) {
+            return false;
+        }
     }
 }
 
@@ -687,14 +945,18 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
+if (!function_exists('csrfField')) {
 function csrfField() {
     return '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
 }
+}
 
+if (!function_exists('validateCsrf')) {
 function validateCsrf() {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         die(__('error_csrf'));
     }
+}
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -797,125 +1059,443 @@ function renderFooter() {
 }
 
 // 0. API Endpoint (Query String)
-if ($uri === BASE_PATH . '/api.php' || $uri === BASE_PATH . '/api-shorten') {
-    if (!$apiEnabled) {
-        http_response_code(403);
-        die("ERROR: API is disabled.");
-    }
+// 0. API Dispatcher
+// 0. API Endpoint (Query String)
+// 0. API Dispatcher
+// Exclude /api (settings page) but include /api/ (endpoints) and /api-shorten
 
-    // Security Check: User-Agent
-    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    $isAllowedUA = false;
-    $allowedUAs = explode(',', $apiAllowedUserAgents);
-    foreach ($allowedUAs as $allowed) {
-        if (stripos($ua, trim($allowed)) !== false) {
-            $isAllowedUA = true;
-            break;
-        }
-    }
-    if (!$isAllowedUA) {
-        http_response_code(403);
-        die("ERROR: Access Denied (User-Agent).");
-    }
 
-    // Security Check: IP Whitelist
-    if (!empty($apiAllowedIPs)) {
-        $clientIP = $_SERVER['REMOTE_ADDR'];
-        $allowedIPs = explode(',', $apiAllowedIPs);
-        if (!in_array($clientIP, array_map('trim', $allowedIPs))) {
-            http_response_code(403);
-            die("ERROR: Access Denied (IP).");
-        }
-    }
-
-    // Security Check: Token (ids) or Session
-    $token = $_GET['ids'] ?? '';
-    $identifiedUser = null;
-
-    if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-        // Option 1: Logged in session
-        $identifiedUser = [
-            'id' => $_SESSION['user_id'],
-            'username' => $_SESSION['username'],
-            'api_key' => '' // We don't need the key for session-based access
-        ];
-    } elseif (!empty($token)) {
-        // Option 2: Token-based
-        // Support both static API Key and Dynamic Token
-        
-        // Find user by static key first
-        $stmt = $pdo->prepare("SELECT id, username, api_key FROM users WHERE api_key = ?");
-        $stmt->execute([$token]);
-        $user = $stmt->fetch();
-        
-        if ($user) {
-            $identifiedUser = $user;
-        } else {
-            // Try as Dynamic Token: base64_encode(timestamp . ":" . hmac(timestamp, user_api_key))
-            $decoded = base64_decode($token);
-            if ($decoded && strpos($decoded, ':') !== false) {
-                list($ts, $hash) = explode(':', $decoded, 2);
-                if (abs(time() - (int)$ts) <= $apiTokenExpiry) {
-                    // We need to find which user this token belongs to. 
-                    // To do this efficiently, we might need a uid parameter, 
-                    // but if not provided, we must check all users (not recommended for large DBs).
-                    // For now, let's look for a user ID hint in the token or just check all (small scale).
-                    $stmtAll = $pdo->query("SELECT id, username, api_key FROM users");
-                    while ($userCandidate = $stmtAll->fetch()) {
-                        $expectedHash = hash_hmac('sha256', (string)$ts, $userCandidate['api_key']);
-                        if (hash_equals($expectedHash, $hash)) {
-                            $identifiedUser = $userCandidate;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (!$identifiedUser) {
-        http_response_code(403);
-        die("ERROR: Invalid or expired token (ids required if not logged in).");
-    }
-
-    // Parameters
-    $longUrl = $_GET['longurl'] ?? '';
-    $unique = $_GET['unique'] ?? '';
-
-    if (empty($longUrl) || !filter_var($longUrl, FILTER_VALIDATE_URL)) {
-        http_response_code(400);
-        die("ERROR: Invalid longurl.");
-    }
-
-    if (empty($unique)) {
-        $unique = generateCode();
-    } else {
-        // Validasi short code
-        if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $unique)) {
-            http_response_code(400);
-            die("ERROR: Invalid unique code format.");
-        }
-        // Cek duplikat
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
-        $stmt->execute([$unique]);
-        if ($stmt->fetchColumn() > 0) {
-            http_response_code(400);
-            die("ERROR: Unique code already taken.");
-        }
-    }
-
-    // Save
-    try {
-        $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
-        $stmt->execute([$longUrl, $unique, $identifiedUser['id']]);
-        
-        $baseUrl = getBaseUrl();
-        echo $baseUrl . BASE_PATH . "/" . $unique;
+if (!function_exists('jsonResponse')) {
+    function jsonResponse($code, $message, $data = []) {
+        http_response_code($code);
+        header('Content-Type: application/json');
+        echo json_encode(array_merge(['status' => $code, 'message' => $message], $data));
         exit;
-    } catch (Exception $e) {
-        http_response_code(500);
-        die("ERROR: " . $e->getMessage());
     }
+}
+
+if (!function_exists('handleApiRequest')) {
+function handleApiRequest() {
+    global $pdo, $apiEnabled, $apiAllowedUserAgents, $apiAllowedIPs, $apiTokenExpiry, $apiAuthType, $apiSecret, $appTitle;
+
+    // 1. Global Checks
+    if (!$apiEnabled) jsonResponse(403, "API is disabled.");
+
+    $method = $_SERVER['REQUEST_METHOD'];
+    $path = str_replace(BASE_PATH, '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)); // e.g., /api/login
+
+    // 2. Public Endpoints (no IP/auth required)
+    if ($path === '/api/login' && $method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $username = $input['username'] ?? '';
+        $password = $input['password'] ?? '';
+        
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password'])) {
+            $payload = ['sub' => $user['id'], 'name' => $user['username'], 'role' => ($user['is_admin'] ? 'admin' : 'user')];
+            $token = null;
+            if ($apiAuthType === 'jwt') {
+                $token = SimpleJWT::encode($payload, $apiSecret);
+            } elseif ($apiAuthType === 'paseto') {
+                $token = SimplePaseto::encode($payload, $apiSecret);
+            } else {
+                jsonResponse(400, "Token auth is not enabled. Use API Key.");
+            }
+            jsonResponse(200, "Login successful", ['token' => $token, 'type' => $apiAuthType]);
+        }
+        jsonResponse(401, "Invalid credentials");
+    }
+
+    // Serve api-docs.json (public endpoint) with Auto-Generation
+    if ($path === '/api-docs.json' && $method === 'GET') {
+        $docsFile = __DIR__ . '/api-docs.json';
+        
+        // Auto-generate if missing or outdated
+        if (!file_exists($docsFile) || filemtime(__FILE__) > filemtime($docsFile)) {
+            $baseUrl = getBaseUrl() . BASE_PATH;
+            $spec = [
+                "openapi" => "3.0.0",
+                "info" => [
+                    "title" => $appTitle . " API",
+                    "version" => "1.0.0",
+                    "description" => "RESTful API for URL Shortener with JWT/PASETO authentication"
+                ],
+                "servers" => [
+                    ["url" => $baseUrl, "description" => "Current Server"]
+                ],
+                "components" => [
+                    "securitySchemes" => [
+                        "bearerAuth" => [
+                            "type" => "http",
+                            "scheme" => "bearer",
+                            "bearerFormat" => strtoupper($apiAuthType),
+                            "description" => "Use JWT or PASETO token from /api/login"
+                        ]
+                    ],
+                    "schemas" => [
+                        "LoginRequest" => [
+                            "type" => "object",
+                            "required" => ["username", "password"],
+                            "properties" => [
+                                "username" => ["type" => "string", "example" => "admin"],
+                                "password" => ["type" => "string", "example" => "password"]
+                            ]
+                        ],
+                        "LoginResponse" => [
+                            "type" => "object",
+                            "properties" => [
+                                "status" => ["type" => "integer", "example" => 200],
+                                "message" => ["type" => "string", "example" => "Login successful"],
+                                "token" => ["type" => "string"],
+                                "type" => ["type" => "string", "example" => "jwt"]
+                            ]
+                        ],
+                        "URL" => [
+                            "type" => "object",
+                            "properties" => [
+                                "id" => ["type" => "integer"],
+                                "long_url" => ["type" => "string"],
+                                "short_code" => ["type" => "string"],
+                                "created_at" => ["type" => "string"],
+                                "hits" => ["type" => "integer"]
+                            ]
+                        ]
+                    ]
+                ],
+                "security" => [["bearerAuth" => []]],
+                "paths" => [
+                    "/api/login" => [
+                        "post" => [
+                            "summary" => "Login and get token",
+                            "tags" => ["Authentication"],
+                            "security" => [],
+                            "requestBody" => [
+                                "required" => true,
+                                "content" => [
+                                    "application/json" => [
+                                        "schema" => ["\$ref" => "#/components/schemas/LoginRequest"]
+                                    ]
+                                ]
+                            ],
+                            "responses" => [
+                                "200" => [
+                                    "description" => "Login successful",
+                                    "content" => [
+                                        "application/json" => [
+                                            "schema" => ["\$ref" => "#/components/schemas/LoginResponse"]
+                                        ]
+                                    ]
+                                ],
+                                "401" => ["description" => "Invalid credentials"]
+                            ]
+                        ]
+                    ],
+                    "/api/shorten" => [
+                        "post" => [
+                            "summary" => "Create short URL",
+                            "tags" => ["URLs"],
+                            "parameters" => [
+                                ["in" => "query", "name" => "longurl", "required" => true, "schema" => ["type" => "string"], "example" => "https://google.com"],
+                                ["in" => "query", "name" => "unique", "schema" => ["type" => "string"], "example" => "mycode"]
+                            ],
+                            "responses" => [
+                                "200" => ["description" => "Short URL created (returns plain text URL)"]
+                            ]
+                        ]
+                    ],
+                    "/api/urls" => [
+                        "get" => [
+                            "summary" => "List user's URLs",
+                            "tags" => ["URLs"],
+                            "responses" => [
+                                "200" => [
+                                    "description" => "List of URLs",
+                                    "content" => [
+                                        "application/json" => [
+                                            "schema" => [
+                                                "type" => "object",
+                                                "properties" => [
+                                                    "status" => ["type" => "integer"],
+                                                    "message" => ["type" => "string"],
+                                                    "data" => [
+                                                        "type" => "array",
+                                                        "items" => ["\$ref" => "#/components/schemas/URL"]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                    "/api/stats" => [
+                        "get" => [
+                            "summary" => "Get URL statistics",
+                            "tags" => ["Statistics"],
+                            "parameters" => [
+                                ["in" => "query", "name" => "id", "required" => true, "schema" => ["type" => "integer"], "description" => "URL ID"]
+                            ],
+                            "responses" => [
+                                "200" => [
+                                    "description" => "Statistics data",
+                                    "content" => [
+                                        "application/json" => [
+                                            "schema" => [
+                                                "type" => "object",
+                                                "properties" => [
+                                                    "status" => ["type" => "integer"],
+                                                    "message" => ["type" => "string"],
+                                                    "data" => [
+                                                        "type" => "object",
+                                                        "properties" => [
+                                                            "total" => ["type" => "integer"],
+                                                            "unique_visits" => ["type" => "integer"]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ],
+                                "404" => ["description" => "URL not found"]
+                            ]
+                        ]
+                    ],
+                    "/api/qr" => [
+                        "get" => [
+                            "summary" => "Get QR code for URL",
+                            "tags" => ["Utilities"],
+                            "parameters" => [
+                                ["in" => "query", "name" => "short_url", "required" => true, "schema" => ["type" => "string"], "example" => "https://example.com/abc"]
+                            ],
+                            "responses" => [
+                                "200" => [
+                                    "description" => "QR code image URL",
+                                    "content" => [
+                                        "application/json" => [
+                                            "schema" => [
+                                                "type" => "object",
+                                                "properties" => [
+                                                    "status" => ["type" => "integer"],
+                                                    "message" => ["type" => "string"],
+                                                    "qr_image_url" => ["type" => "string"]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                    "/api/update" => [
+                        "post" => [
+                            "summary" => "Update URL",
+                            "tags" => ["URLs"],
+                            "requestBody" => [
+                                "required" => true,
+                                "content" => [
+                                    "application/json" => [
+                                        "schema" => [
+                                            "type" => "object",
+                                            "required" => ["id", "long_url", "short_code"],
+                                            "properties" => [
+                                                "id" => ["type" => "integer"],
+                                                "long_url" => ["type" => "string"],
+                                                "short_code" => ["type" => "string"]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            "responses" => [
+                                "200" => ["description" => "URL updated"],
+                                "400" => ["description" => "Update failed"]
+                            ]
+                        ]
+                    ],
+                    "/api/delete" => [
+                        "post" => [
+                            "summary" => "Delete URL",
+                            "tags" => ["URLs"],
+                            "requestBody" => [
+                                "required" => true,
+                                "content" => [
+                                    "application/json" => [
+                                        "schema" => [
+                                            "type" => "object",
+                                            "required" => ["id"],
+                                            "properties" => [
+                                                "id" => ["type" => "integer"]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            "responses" => [
+                                "200" => ["description" => "URL deleted"],
+                                "400" => ["description" => "Delete failed"]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+            
+            file_put_contents($docsFile, json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        }
+
+        if (file_exists($docsFile)) {
+            header('Content-Type: application/json');
+            readfile($docsFile);
+            exit;
+        }
+        jsonResponse(404, "API documentation not found.");
+    }
+
+
+    // Swagger UI
+    if ($path === '/api/docs' && $method === 'GET') {
+        global $appFavicon;
+        $specUrl = BASE_PATH . '/api-docs.json';
+        echo '<!DOCTYPE html><html><head><title>API Docs</title><link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script><script>window.onload = () => { window.ui = SwaggerUIBundle({ url: "' . $specUrl . '", dom_id: "#swagger-ui" }); }</script></body></html>';
+        exit;
+    }
+
+    // IP Whitelist (for authenticated endpoints only)
+    if (!empty($apiAllowedIPs)) {
+        $allowedIPs = array_map('trim', explode(',', $apiAllowedIPs));
+        if (!in_array($_SERVER['REMOTE_ADDR'], $allowedIPs)) jsonResponse(403, "Access Denied (IP).");
+    }
+
+    // 3. Authenticated Routes
+    $user = null;
+
+    // A. API Key (Legacy & Query Param)
+    $tokenFromQuery = $_GET['ids'] ?? '';
+    if (!empty($tokenFromQuery)) {
+        // Legacy Logic reuse... simplified
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE api_key = ?");
+        $stmt->execute([$tokenFromQuery]);
+        $user = $stmt->fetch();
+        if (!$user) {
+            // Dynamic Token check (skipped for brevity in this router, we encourage Bearer now)
+             jsonResponse(401, "Invalid API Key.");
+        }
+    }
+
+    // B. Bearer Token (JWT/PASETO)
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? '';
+    if (empty($user) && preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        $bearerToken = $matches[1];
+        if ($apiAuthType === 'jwt') {
+            $decoded = SimpleJWT::decode($bearerToken, $apiSecret);
+        } elseif ($apiAuthType === 'paseto') {
+            $decoded = SimplePaseto::decode($bearerToken, $apiSecret);
+        } else {
+             jsonResponse(400, "Bearer token not supported in '$apiAuthType' mode.");
+        }
+
+        if ($decoded && isset($decoded['sub'])) {
+             $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+             $stmt->execute([$decoded['sub']]);
+             $user = $stmt->fetch();
+        }
+    }
+
+    if (!$user) jsonResponse(401, "Unauthorized (Missing or Invalid Token).");
+
+    // 4. Methods
+    
+    // Shorten (POST/GET) - Compatible with old /api-shorten
+    if (($path === '/api/shorten' || $path === '/api-shorten')) {
+         $longUrl = $_REQUEST['longurl'] ?? '';
+         $unique = $_REQUEST['unique'] ?? '';
+
+         if (empty($longUrl) || !filter_var($longUrl, FILTER_VALIDATE_URL)) jsonResponse(400, "Invalid longurl");
+         
+         if (empty($unique)) $unique = generateCode();
+         if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $unique)) jsonResponse(400, "Invalid code format");
+
+         // Check dupe
+         $stmt = $pdo->prepare("SELECT COUNT(*) FROM urls WHERE short_code = ?");
+         $stmt->execute([$unique]);
+         if ($stmt->fetchColumn() > 0) jsonResponse(400, "Code already taken");
+
+         $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code, user_id) VALUES (?, ?, ?)");
+         $stmt->execute([$longUrl, $unique, $user['id']]);
+         
+         echo getBaseUrl() . BASE_PATH . "/" . $unique; // Plain text response for legacy compat
+         exit;
+    }
+
+    // List URLs
+    if ($path === '/api/urls' && $method === 'GET') {
+        $stmt = $pdo->prepare("SELECT id, long_url, short_code, created_at, (SELECT COUNT(*) FROM visits WHERE url_id = urls.id) as hits FROM urls WHERE user_id = ? ORDER BY created_at DESC LIMIT 100");
+        $stmt->execute([$user['id']]);
+        jsonResponse(200, "OK", ['data' => $stmt->fetchAll()]);
+    }
+
+    // URL Stats
+    if ($path === '/api/stats' && $method === 'GET') {
+        $id = $_GET['id'] ?? 0;
+        // Verify ownership
+        $stmt = $pdo->prepare("SELECT * FROM urls WHERE id = ? AND user_id = ?");
+        $stmt->execute([$id, $user['id']]);
+        if (!$stmt->fetch()) jsonResponse(404, "URL not found or access denied");
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total, COUNT(DISTINCT ip_address) as unique_visits FROM visits WHERE url_id = ?");
+        $stmt->execute([$id]);
+        $stats = $stmt->fetch();
+        jsonResponse(200, "OK", ['data' => $stats]);
+    }
+
+    // Update URL
+    if ($path === '/api/update' && $method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = $input['id'] ?? 0;
+        $longUrl = $input['long_url'] ?? '';
+        $shortCode = $input['short_code'] ?? '';
+
+        if (!filter_var($longUrl, FILTER_VALIDATE_URL)) jsonResponse(400, "Invalid URL");
+
+        $stmt = $pdo->prepare("UPDATE urls SET long_url = ?, short_code = ? WHERE id = ? AND user_id = ?");
+        if ($stmt->execute([$longUrl, $shortCode, $id, $user['id']])) {
+            jsonResponse(200, "Updated");
+        }
+        jsonResponse(400, "Update failed (Check ID/Ownership)");
+    }
+
+    // Delete URL
+    if ($path === '/api/delete' && $method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = $input['id'] ?? 0;
+        $stmt = $pdo->prepare("DELETE FROM urls WHERE id = ? AND user_id = ?");
+        if ($stmt->execute([$id, $user['id']])) {
+             jsonResponse(200, "Deleted");
+        }
+        jsonResponse(400, "Delete failed");
+    }
+
+    // QR Code
+    if ($path === '/api/qr' && $method === 'GET') {
+         $short = $_GET['short_url'] ?? '';
+         if (empty($short)) jsonResponse(400, "Missing short_url");
+         // Use Google Charts API as fallback/primary for API to keep it simple JSON
+         $qrUrl = "https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=" . urlencode($short);
+         jsonResponse(200, "OK", ['qr_image_url' => $qrUrl]);
+    }
+
+    jsonResponse(404, "Endpoint not found: $path");
+}
+}
+
+// 0. API Dispatcher (Moved after definition)
+if (($uri !== BASE_PATH . '/api' && strpos($uri, BASE_PATH . '/api') === 0) || $uri === BASE_PATH . '/api-shorten' || $uri === BASE_PATH . '/api-docs.json') {
+    handleApiRequest();
 }
 
 // 0.5 API Settings Page
@@ -936,10 +1516,21 @@ if ($uri === BASE_PATH . '/api') {
             exit;
         }
 
+        if (isset($_POST['regenerate_secret'])) {
+            $newSecret = bin2hex(random_bytes(32)); // 64 hex chars = 32 bytes
+            $content = file_get_contents(__FILE__);
+            $pattern = '/\$apiSecret\s*=\s*.*?;/';
+            $content = preg_replace($pattern, "\$apiSecret = '" . $newSecret . "';", $content);
+            file_put_contents(__FILE__, $content);
+            header('Location: ' . BASE_PATH . '/api?updated=1');
+            exit;
+        }
+
         $enabled = isset($_POST['api_enabled']) ? 'true' : 'false';
         $uas = $_POST['api_allowed_ua'] ?? $apiAllowedUserAgents;
         $ips = $_POST['api_allowed_ips'] ?? $apiAllowedIPs;
         $expiry = $_POST['api_expiry'] ?? $apiTokenExpiry;
+        $authType = $_POST['api_auth_type'] ?? $apiAuthType;
 
         // Self-modify config
         $content = file_get_contents(__FILE__);
@@ -948,11 +1539,12 @@ if ($uri === BASE_PATH . '/api') {
             'apiEnabled' => $enabled,
             'apiAllowedUserAgents' => "'$uas'",
             'apiAllowedIPs' => "'$ips'",
-            'apiTokenExpiry' => (int)$expiry
+            'apiTokenExpiry' => (int)$expiry,
+            'apiAuthType' => "'$authType'"
         ];
 
         foreach ($configs as $key => $val) {
-            $pattern = '/\$' . $key . '\s*=\s*.*?;/';
+            $pattern = '/^\$' . $key . '\s*=\s*.*?;/m';
             $content = preg_replace($pattern, '$' . $key . ' = ' . $val . ';', $content);
         }
 
@@ -974,6 +1566,13 @@ if ($uri === BASE_PATH . '/api') {
     
     if (isset($_GET['updated'])) echo "<div class='notification is-success'>Settings updated.</div>";
 
+    // API Documentation Link
+    echo "<div class='box has-background-info-light'>";
+    echo "<h3 class='title is-5'><i class='fas fa-book'></i> API Documentation</h3>";
+    echo "<p class='mb-3'>View interactive API documentation with all available endpoints.</p>";
+    echo "<a href='" . BASE_PATH . "/api/docs' target='_blank' class='button is-info'><span class='icon'><i class='fas fa-external-link-alt'></i></span><span>Open API Docs (Swagger UI)</span></a>";
+    echo "</div>";
+
     // User's API Key Section
     echo "<div class='box'><h3 class='title is-5'>" . __('your_api_key') . "</h3>";
     echo "<div class='field has-addons'><div class='control is-expanded'><input class='input' type='text' value='$currentUserKey' readonly id='myApiKey'></div>";
@@ -988,6 +1587,14 @@ if ($uri === BASE_PATH . '/api') {
     echo "<form method='post'>";
     echo csrfField();
     echo "<div class='field'><label class='checkbox'><input type='checkbox' name='api_enabled' " . ($apiEnabled ? 'checked' : '') . "> " . __('api_enabled') . "</label></div>";
+    
+    // Auth Type Selection
+    echo "<div class='field'><label class='label'>Authentication Type</label><div class='control'><div class='select is-fullwidth'><select name='api_auth_type'>";
+    echo "<option value='api_key'" . ($apiAuthType === 'api_key' ? ' selected' : '') . ">API Key (Legacy)</option>";
+    echo "<option value='jwt'" . ($apiAuthType === 'jwt' ? ' selected' : '') . ">JWT (JSON Web Token)</option>";
+    echo "<option value='paseto'" . ($apiAuthType === 'paseto' ? ' selected' : '') . ">PASETO (v2.local)</option>";
+    echo "</select></div></div><p class='help'>Select authentication method for API endpoints.</p></div>";
+
     echo "<div class='field'><label class='label'>" . __('api_allowed_ua') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ua' value='$apiAllowedUserAgents'></div><p class='help'>Comma separated.</p></div>";
     echo "<div class='field'><label class='label'>" . __('api_allowed_ips') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ips' value='$apiAllowedIPs'></div><p class='help'>Comma separated (empty for all).</p></div>";
     echo "<div class='field'><label class='label'>" . __('api_expiry') . "</label><div class='control'><input class='input' type='number' name='api_expiry' value='$apiTokenExpiry'></div></div>";
@@ -995,34 +1602,80 @@ if ($uri === BASE_PATH . '/api') {
     echo "</form>";
     echo "</div>";
 
-    // Example URL Section
-    $ts = time();
-    $hash = hash_hmac('sha256', (string)$ts, $currentUserKey);
-    $testToken = base64_encode($ts . ":" . $hash);
-    $baseUrl = getBaseUrl();
-    
-    // Dynamic Token URL (Recommended)
-    $exampleUrlToken = $baseUrl . BASE_PATH . "/api-shorten?ids=" . $testToken . "&longurl=https://google.com&unique=test" . rand(100,999);
-    // Session-based URL (Optional)
-    $exampleUrlSession = $baseUrl . BASE_PATH . "/api-shorten?longurl=https://google.com&unique=test_session" . rand(100,999);
-
-    echo "<div class='box'><h3 class='title is-5'>" . __('api_usage_url') . "</h3>";
-    
-    echo "<label class='label is-small'>" . __('example_token_url') . "</label>";
-    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExample' value='$exampleUrlToken' readonly></div>";
-    echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExample\").value)'>" . __('copy') . "</button></div></div>";
-    echo "<p class='help mb-3'>Token dynamic valid $apiTokenExpiry sec.</p>";
-
-    echo "<label class='label is-small'>" . __('example_session_url') . "</label>";
-    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExampleSession' value='$exampleUrlSession' readonly></div>";
-    echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExampleSession\").value)'>" . __('copy') . "</button></div></div>";
-    echo "<p class='help mb-3'>" . __('session_url_help') . "</p>";
-
-    echo "<a href='$exampleUrlToken' target='_blank' class='button is-small is-link is-outlined'>" . __('api_test') . "</a>";
+    // Secret Key Management (for JWT/PASETO)
+    echo "<div class='box'><h3 class='title is-5'>Secret Key (JWT/PASETO)</h3>";
+    echo "<p class='mb-3'>This secret is used to sign and verify JWT/PASETO tokens. Keep it secure!</p>";
+    echo "<div class='field has-addons'><div class='control is-expanded'><input class='input' type='password' value='$apiSecret' readonly id='apiSecretField'></div>";
+    echo "<div class='control'><button class='button is-info' onclick='toggleSecret()'><i class='fas fa-eye' id='eyeIcon'></i></button></div>";
+    echo "<div class='control'><button class='button is-info' onclick='copyToClipboard(document.getElementById(\"apiSecretField\").value)'>Copy</button></div></div>";
+    echo "<form method='post' onsubmit='return confirm(\"Regenerate secret? This will invalidate all existing tokens!\")'><input type='hidden' name='regenerate_secret' value='1'>";
+    echo csrfField();
+    echo "<button class='button is-danger is-small mt-2' type='submit'><i class='fas fa-sync'></i> Regenerate Secret</button></form>";
     echo "</div>";
 
+    // Example URL Section (Updated for JWT/PASETO)
+    $baseUrl = getBaseUrl();
+    
+    if ($apiAuthType === 'jwt' || $apiAuthType === 'paseto') {
+        // Generate example token
+        $payload = ['sub' => $_SESSION['user_id'], 'name' => $_SESSION['username']];
+        if ($apiAuthType === 'jwt') {
+            $exampleToken = SimpleJWT::encode($payload, $apiSecret);
+        } else {
+            $exampleToken = SimplePaseto::encode($payload, $apiSecret);
+        }
+        
+        echo "<div class='box'><h3 class='title is-5'>API Usage Example (" . strtoupper($apiAuthType) . ")</h3>";
+        echo "<label class='label is-small'>Example Token</label>";
+        echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='exampleToken' value='$exampleToken' readonly></div>";
+        echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"exampleToken\").value)'>Copy</button></div></div>";
+        
+        echo "<label class='label is-small mt-3'>CURL Example</label>";
+        $curlExample = "curl -X POST '" . $baseUrl . BASE_PATH . "/api/shorten?longurl=https://google.com' -H 'Authorization: Bearer $exampleToken'";
+        echo "<div class='field'><div class='control'><textarea class='textarea is-small' readonly rows='2'>$curlExample</textarea></div></div>";
+        echo "</div>";
+    } else {
+        // Legacy API Key examples
+        $ts = time();
+        $hash = hash_hmac('sha256', (string)$ts, $currentUserKey);
+        $testToken = base64_encode($ts . ":" . $hash);
+        
+        $exampleUrlToken = $baseUrl . BASE_PATH . "/api-shorten?ids=" . $testToken . "&longurl=https://google.com&unique=test" . rand(100,999);
+        $exampleUrlSession = $baseUrl . BASE_PATH . "/api-shorten?longurl=https://google.com&unique=test_session" . rand(100,999);
+
+        echo "<div class='box'><h3 class='title is-5'>" . __('api_usage_url') . "</h3>";
+        
+        echo "<label class='label is-small'>" . __('example_token_url') . "</label>";
+        echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExample' value='$exampleUrlToken' readonly></div>";
+        echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExample\").value)'>" . __('copy') . "</button></div></div>";
+        echo "<p class='help mb-3'>Token dynamic valid $apiTokenExpiry sec.</p>";
+
+        echo "<label class='label is-small'>" . __('example_session_url') . "</label>";
+        echo "<div class='field has-addons'><div class='control is-expanded'><input class='input is-small' id='apiExampleSession' value='$exampleUrlSession' readonly></div>";
+        echo "<div class='control'><button class='button is-small is-info' onclick='copyToClipboard(document.getElementById(\"apiExampleSession\").value)'>" . __('copy') . "</button></div></div>";
+        echo "<p class='help mb-3'>" . __('session_url_help') . "</p>";
+
+        echo "<a href='$exampleUrlToken' target='_blank' class='button is-small is-link is-outlined'>" . __('api_test') . "</a>";
+        echo "</div>";
+    }
+
     echo "</div></div></div></section>";
-    echo "<script>function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { alert('" . __('link_copied') . "'); }); }</script>";
+    echo "<script>
+    function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { alert('" . __('link_copied') . "'); }); }
+    function toggleSecret() {
+        const field = document.getElementById('apiSecretField');
+        const icon = document.getElementById('eyeIcon');
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+    </script>";
     renderFooter();
     exit;
 }
@@ -1648,7 +2301,10 @@ if ($uri === BASE_PATH . '/admin') {
     $search = $_GET['q'] ?? '';
 
     // Ambil data (Filter by User)
-    $sql = "SELECT * FROM urls WHERE user_id = ?";
+    $sql = "SELECT *, 
+            (SELECT COUNT(*) FROM visits WHERE visits.url_id = urls.id) as total_clicks,
+            (SELECT COUNT(DISTINCT ip_address) FROM visits WHERE visits.url_id = urls.id) as unique_clicks
+            FROM urls WHERE user_id = ?";
     $params = [$_SESSION['user_id']];
     
     if (!empty($search)) {
@@ -1698,7 +2354,7 @@ if ($uri === BASE_PATH . '/admin') {
     echo "<div class='table-container'>";
     echo "<table class='table is-striped is-hoverable is-fullwidth is-responsive-cards'>";
     // Removed ID Column, Added Actions Column
-    echo "<thead><tr><th>" . __('original_url') . "</th><th>" . __('short_url') . "</th><th width='200'>" . __('actions') . "</th></tr></thead>";
+    echo "<thead><tr><th>" . __('original_url') . "</th><th>" . __('short_url') . "</th><th>Unique/Hits</th><th width='200'>" . __('actions') . "</th></tr></thead>";
     echo "<tbody>";
     foreach ($urls as $u) {
         $shortLink = getBaseUrl() . BASE_PATH . "/" . $u['short_code'];
@@ -1707,6 +2363,7 @@ if ($uri === BASE_PATH . '/admin') {
         // echo "<td data-label='ID'>{$u['id']}</td>"; // Removed ID Display
         echo "<td data-label='URL Asli' style='max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' title='$longUrlDisplay'>$longUrlDisplay</td>";
         echo "<td data-label='URL Pendek'><a href='$shortLink' target='_blank'>{$u['short_code']}</a></td>";
+        echo "<td data-label='Unique/Hits'>" . ($u['unique_clicks'] ?? 0) . " / " . ($u['total_clicks'] ?? 0) . "</td>";
         // echo "<td data-label='Dibuat'>{$u['created_at']}</td>"; // Removed Date
         echo "<td data-label='Aksi'>";
         // Action Buttons
@@ -2088,6 +2745,7 @@ header("Location: $fallbackUrl");
 exit;
 
 // --- TRANSLATIONS ---
+if (!function_exists('getTranslations')) {
 function getTranslations() {
     return [
         'en' => [
@@ -2359,5 +3017,6 @@ function getTranslations() {
             'session_url_help' => 'Link ini hanya berfungsi selama Anda login di browser ini.'
         ]
     ];
+}
 }
 

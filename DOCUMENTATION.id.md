@@ -97,6 +97,8 @@ $dbPort = '';  // Opsional: 3306 untuk MySQL, 5432 untuk PostgreSQL
 
 ```php
 $apiEnabled = true;
+$apiAuthType = 'jwt'; // Opsi: 'api_key', 'jwt', 'paseto'
+$apiSecret = '...'; // Secret untuk tanda tangan JWT/PASETO
 $apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // UA yang diperbolehkan (pisahkan dengan koma)
 $apiAllowedIPs = ''; // IP yang diperbolehkan (kosong = semua)
 $apiTokenExpiry = 3600; // Masa berlaku token dalam detik
@@ -158,27 +160,45 @@ Fungsi helper untuk mengambil string terjemahan berdasarkan pengaturan `$appLang
 
 ## 🔌 Penggunaan & Integrasi API
 
-Aplikasi ini menyediakan API yang robust untuk pemendekan URL secara programatik.
+Aplikasi ini menyediakan API yang tangguh untuk pemendekan URL secara programatik, dikelola melalui halaman **Pengaturan API** di dashboard.
+
+### 📚 Dokumentasi Interaktif (Swagger UI)
+Cara termudah untuk menjelajahi dan menguji API adalah menggunakan Swagger UI bawaan.
+- **URL**: `http://situs-anda.com/api/docs`
+- **File Spesifikasi**: `http://situs-anda.com/api-docs.json` (Dibuat otomatis)
 
 ### Endpoint
-- `POST/GET` `/api-shorten` (Direkomendasikan)
-- `POST/GET` `/api.php` (Alias legacy)
+- `POST /api/login`: Autentikasi dan dapatkan token (JWT/PASETO).
+- `POST /api/shorten`: Buat URL pendek baru.
+- `GET /api/urls`: Lihat daftar URL Anda.
+- `GET /api/stats`: Dapatkan statistik untuk URL tertentu.
+- `POST /api/update`: Perbarui URL pendek.
+- `POST /api/delete`: Hapus URL pendek.
 
 ### Metode Autentikasi
+Anda dapat mengonfigurasi metode autentikasi di dashboard **Manajer API** (`/api`).
 
-#### 1. API Key Statis
-Kirimkan API key pribadi Anda melalui parameter `ids`.
-`GET /api-shorten?ids=KUNCI_API_ANDA&longurl=https://example.com`
+#### 1. API Key (Legacy)
+Autentikasi berbasis kunci sederhana. Cocok untuk skrip simpel.
+- **Header**: Tidak diperlukan (dikirim via query param).
+- **Query Param**: `?ids=API_KEY_ANDA`
+- **Contoh**: `POST /api/shorten?ids=xyz123&longurl=https://google.com`
 
-#### 2. Token HMAC Dinamis (Sangat Aman)
-Buat token menggunakan `base64_encode(timestamp . ":" . hmac_sha256(timestamp, api_key))`.
-`GET /api-shorten?ids=TOKEN_DINAMIS&longurl=https://example.com`
+#### 2. JWT (JSON Web Token)
+Autentikasi token standar yang aman.
+1.  **Login**: `POST /api/login` dengan `{"username":"admin", "password":"..."}`.
+2.  **Terima**: Dapatkan `token` dalam respons JSON.
+3.  **Gunakan**: Kirim header `Authorization: Bearer <token_anda>` pada request selanjutnya.
 
-#### 3. Berbasis Sesi
-Jika Anda sudah login ke dashboard, API dapat digunakan tanpa token.
+#### 3. PASETO (Platform-Agnostic Security Tokens)
+Alternatif yang lebih aman daripada JWT (Versi 2, Local).
+- Penggunaan identik dengan JWT (Login -> Bearer Token).
+- Memerlukan ekstensi PHP `sodium`.
 
 ### Respons
-Mengembalikan URL yang telah dipendekkan sebagai plain text (contoh: `https://u.com/abc`) atau pesan error yang dimulai dengan `ERROR:`.
+- **Sukses (200)**: Objek JSON (contoh: `{"status":200, "message":"OK", "data": [...]}`).
+- **Dukungan Legacy**: `/api/shorten` mengembalikan URL pendek plain text jika sukses (untuk kompatibilitas Google Sheets).
+- **Error (4xx/5xx)**: Objek JSON dengan `status` dan `pesan`.
 
 ### Mengubah Logo
 Ganti `logo.png` di direktori root dengan gambar Anda sendiri. Perbarui nama file di `index.php` jika perlu.

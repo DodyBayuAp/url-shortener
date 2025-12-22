@@ -63,8 +63,8 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 
 ### 🔌 **API & Integrasi**
 - **API Key Individual**: Setiap user mendapatkan kunci unik untuk akses API
-- **Autentikasi Fleksibel**: Mendukung Static Key, Dynamic HMAC Token, dan akses berbasis Sesi
-- **Output Plain Text**: Dioptimalkan untuk `IMPORTDATA` Google Sheets
+- **Autentikasi Fleksibel**: Mendukung Legacy API Key, JWT (JSON Web Tokens), dan PASETO (Platform-Agnostic Security Tokens)
+- **Dokumentasi Otomatis**: Swagger UI bawaan dengan generasi spesifikasi OpenAPI 3.0 otomatis
 - **Whitelisting**: Pembatasan IP dan User-Agent yang dapat dikonfigurasi
 
 ### 🎨 **Interface Modern**
@@ -88,7 +88,8 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 
 ### 🎁 **Fitur Bonus**
 - **Generasi QR Code**: QR code instan untuk semua short link
-- **Akses API**: Endpoint robust untuk pemendekan URL secara eksternal (Google Sheets, bot, dll)
+- **Akses API**: Endpoint robust untuk pemendekan URL secara eksternal (Google Sheets, bot, dll) dengan dokumentasi Swagger UI lengkap
+- **Manajer API**: Halaman admin khusus untuk konfigurasi Autentikasi API, Whitelist IP, dan Kedaluwarsa Token
 - **Manajemen User**: Dukungan multi-user dengan role-based access
 - **Custom Short Code**: Gunakan kode Anda sendiri (mendukung `a-z`, `0-9`, `-`, `_`)
 - **Operasi Bulk**: Kelola banyak URL secara efisien

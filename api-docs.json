@@ -1,0 +1,361 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "URL Shortener API",
+        "version": "1.0.0",
+        "description": "RESTful API for URL Shortener with JWT/PASETO authentication"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8001",
+            "description": "Current Server"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Use JWT or PASETO token from /api/login"
+            }
+        },
+        "schemas": {
+            "LoginRequest": {
+                "type": "object",
+                "required": [
+                    "username",
+                    "password"
+                ],
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "example": "admin"
+                    },
+                    "password": {
+                        "type": "string",
+                        "example": "password"
+                    }
+                }
+            },
+            "LoginResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "example": 200
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Login successful"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "jwt"
+                    }
+                }
+            },
+            "URL": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "long_url": {
+                        "type": "string"
+                    },
+                    "short_code": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "hits": {
+                        "type": "integer"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/api/login": {
+            "post": {
+                "summary": "Login and get token",
+                "tags": [
+                    "Authentication"
+                ],
+                "security": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials"
+                    }
+                }
+            }
+        },
+        "/api/shorten": {
+            "post": {
+                "summary": "Create short URL",
+                "tags": [
+                    "URLs"
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "longurl",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "https://google.com"
+                    },
+                    {
+                        "in": "query",
+                        "name": "unique",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "mycode"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Short URL created (returns plain text URL)"
+                    }
+                }
+            }
+        },
+        "/api/urls": {
+            "get": {
+                "summary": "List user's URLs",
+                "tags": [
+                    "URLs"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of URLs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/URL"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/stats": {
+            "get": {
+                "summary": "Get URL statistics",
+                "tags": [
+                    "Statistics"
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "URL ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistics data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "unique_visits": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found"
+                    }
+                }
+            }
+        },
+        "/api/qr": {
+            "get": {
+                "summary": "Get QR code for URL",
+                "tags": [
+                    "Utilities"
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "short_url",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "https://example.com/abc"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "QR code image URL",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "qr_image_url": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/update": {
+            "post": {
+                "summary": "Update URL",
+                "tags": [
+                    "URLs"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "id",
+                                    "long_url",
+                                    "short_code"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "integer"
+                                    },
+                                    "long_url": {
+                                        "type": "string"
+                                    },
+                                    "short_code": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "URL updated"
+                    },
+                    "400": {
+                        "description": "Update failed"
+                    }
+                }
+            }
+        },
+        "/api/delete": {
+            "post": {
+                "summary": "Delete URL",
+                "tags": [
+                    "URLs"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "id"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "integer"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "URL deleted"
+                    },
+                    "400": {
+                        "description": "Delete failed"
+                    }
+                }
+            }
+        }
+    }
+}

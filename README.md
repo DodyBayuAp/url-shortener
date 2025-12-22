@@ -61,7 +61,8 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 
 ### 🔌 **API & Integration**
 - **Per-User API Keys**: Each user gets a unique key for API access
-- **Flexible Authentication**: Supports Static Keys, Dynamic HMAC Tokens, and Session-based access
+- **Flexible Authentication**: Supports Legacy API Keys, JWT (JSON Web Tokens), and PASETO (Platform-Agnostic Security Tokens)
+- **Auto-Generated Docs**: Built-in Swagger UI with automatic OpenAPI 3.0 specification generation
 - **Plain Text Output**: Optimized for Google Sheets `IMPORTDATA`
 - **Whitelisting**: Configurable IP and User-Agent restrictions
 
@@ -85,7 +86,8 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 
 ### 🎁 **Bonus Features**
 - **QR Code Generation**: Instant QR codes for all short links
-- **API Access**: Robust endpoint for shortening URLs externally (Google Sheets, bots, etc.)
+- **API Access**: Robust endpoint for shortening URLs externally (Google Sheets, bots, etc.) with full Swagger UI documentation
+- **API Manager**: Dedicated admin page to configure API Authentication, IP Whitelisting, and Token Expiry
 - **User Management**: Multi-user support with role-based access
 - **Custom Short Codes**: Use your own memorable codes (supports `a-z`, `0-9`, `-`, `_`)
 - **Bulk Operations**: Manage multiple URLs efficiently
