@@ -163,7 +163,10 @@ Translation helper function that retrieves localized strings based on `$appLang`
 The application provides a robust API for programmatic URL shortening, managed via the **API Settings** page in the dashboard.
 
 ### 📚 Interactive Documentation (Swagger UI)
-The easiest way to explore and test the API is using the built-in Swagger UI.
+The easiest way to explore and test the API is using the built-in Swagger UI. No manual documentation is required; it stays in sync with your `index.php`.
+
+![API Documentation](screenshots/API-Docs.png)
+
 - **URL**: `http://your-site.com/api/docs`
 - **Spec File**: `http://your-site.com/api-docs.json` (Auto-generated)
 

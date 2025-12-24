@@ -27,11 +27,14 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 ### Setup Wizard
 <img src="screenshots/setup-wizard.png" width="600" alt="Setup Wizard">
 
-### Analytics & QR Codes
+### Analytics, QR Codes & API Docs
 <table>
   <tr>
     <td><img src="screenshots/analytics.png" alt="Analytics"></td>
     <td><img src="screenshots/qr-code.png" alt="QR Code"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="screenshots/API-Docs.png" alt="API Documentation"></td>
   </tr>
 </table>
 

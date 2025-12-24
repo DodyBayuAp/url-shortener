@@ -29,11 +29,14 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 ### Setup Wizard
 <img src="screenshots/setup-wizard.png" width="600" alt="Setup Wizard">
 
-### Analytics & QR Code
+### Analytics, QR Code & API Docs
 <table>
   <tr>
     <td><img src="screenshots/analytics.png" alt="Analytics"></td>
     <td><img src="screenshots/qr-code.png" alt="QR Code"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="screenshots/API-Docs.png" alt="Dokumentasi API"></td>
   </tr>
 </table>
 

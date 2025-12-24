@@ -163,7 +163,10 @@ Fungsi helper untuk mengambil string terjemahan berdasarkan pengaturan `$appLang
 Aplikasi ini menyediakan API yang tangguh untuk pemendekan URL secara programatik, dikelola melalui halaman **Pengaturan API** di dashboard.
 
 ### 📚 Dokumentasi Interaktif (Swagger UI)
-Cara termudah untuk menjelajahi dan menguji API adalah menggunakan Swagger UI bawaan.
+Cara termudah untuk menjelajahi dan menguji API adalah menggunakan Swagger UI bawaan. Tidak perlu dokumentasi manual; dokumentasi ini akan selalu sinkron dengan `index.php` Anda.
+
+![Dokumentasi API](screenshots/API-Docs.png)
+
 - **URL**: `http://situs-anda.com/api/docs`
 - **File Spesifikasi**: `http://situs-anda.com/api-docs.json` (Dibuat otomatis)
 
