@@ -525,12 +525,12 @@ if (!$configured) {
             
             $updates = [
                 'configured' => 'true',
-                'dbType' => "'$type'",
-                'dbHost' => "'$host'",
-                'dbName' => "'$name'",
-                'dbUser' => "'$user'",
-                'dbPass' => "'$pass'",
-                'dbPort' => "'$port'"
+                'dbType' => "'" . addslashes($type) . "'",
+                'dbHost' => "'" . addslashes($host) . "'",
+                'dbName' => "'" . addslashes($name) . "'",
+                'dbUser' => "'" . addslashes($user) . "'",
+                'dbPass' => "'" . addslashes($pass) . "'",
+                'dbPort' => "'" . addslashes($port) . "'"
             ];
 
             $newContent = $content;
@@ -1537,10 +1537,10 @@ if ($uri === BASE_PATH . '/api') {
         
         $configs = [
             'apiEnabled' => $enabled,
-            'apiAllowedUserAgents' => "'$uas'",
-            'apiAllowedIPs' => "'$ips'",
+            'apiAllowedUserAgents' => "'" . addslashes($uas) . "'",
+            'apiAllowedIPs' => "'" . addslashes($ips) . "'",
             'apiTokenExpiry' => (int)$expiry,
-            'apiAuthType' => "'$authType'"
+            'apiAuthType' => "'" . addslashes($authType) . "'"
         ];
 
         foreach ($configs as $key => $val) {
