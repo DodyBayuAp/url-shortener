@@ -25,7 +25,7 @@ $apiEnabled = true;
 $apiAllowedUserAgents = 'google,Sheets,googlebot,Mozilla'; // Default allowed user agents
 $apiAllowedIPs = ''; // Comma separated IPs, empty means all IPs allowed
 $apiTokenExpiry = 3600; // Token lifetime in seconds (default 1 hour)
-$apiAuthType = 'jwt'; // Authentication Type: 'api_key', 'jwt', 'paseto'
+$apiAuthType = 'paseto'; // Authentication Type: 'api_key', 'jwt', 'paseto'
 $apiSecret = 'c31a3c76e2ce13729fe135c73e595e07ce374d97a466736c98ef6b0ab617dc8b'; // Secret key for JWT/PASETO
 // --- CONFIGURATION END ---
 
@@ -62,8 +62,13 @@ class SimplePaseto {
     public static function encode($payload, $secret) {
         if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')) return null;
         
+        // Convert hex secret to binary if needed
+        if (strlen($secret) === 64 && ctype_xdigit($secret)) {
+            $secret = hex2bin($secret);
+        }
+
         $header = 'v2.local.';
-        $nonce = random_bytes(sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
+        $nonce = random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
         $message = json_encode($payload);
         $ad = $header; // Footer is empty
         $footer = '';
@@ -81,12 +86,17 @@ class SimplePaseto {
     public static function decode($token, $secret) {
          if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_decrypt')) return null;
 
+        // Convert hex secret to binary if needed
+        if (strlen($secret) === 64 && ctype_xdigit($secret)) {
+            $secret = hex2bin($secret);
+        }
+
         $parts = explode('.', $token);
         if (count($parts) < 3 || $parts[0] !== 'v2' || $parts[1] !== 'local') return null;
         
         $payload = base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[2]));
-        $nonce = substr($payload, 0, sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
-        $ciphertext = substr($payload, sodium_crypto_aead_xchacha20poly1305_ietf_NONCEBYTES);
+        $nonce = substr($payload, 0, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
+        $ciphertext = substr($payload, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
         
         $footer = isset($parts[3]) ? base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[3])) : '';
         $header = 'v2.local.';
@@ -1598,7 +1608,7 @@ if ($uri === BASE_PATH . '/api') {
     echo "<div class='field'><label class='label'>" . __('api_allowed_ua') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ua' value='$apiAllowedUserAgents'></div><p class='help'>Comma separated.</p></div>";
     echo "<div class='field'><label class='label'>" . __('api_allowed_ips') . "</label><div class='control'><input class='input' type='text' name='api_allowed_ips' value='$apiAllowedIPs'></div><p class='help'>Comma separated (empty for all).</p></div>";
     echo "<div class='field'><label class='label'>" . __('api_expiry') . "</label><div class='control'><input class='input' type='number' name='api_expiry' value='$apiTokenExpiry'></div></div>";
-    echo "<div class='field mt-5'><button class='button is-primary is-fullwidth' type='submit'>" . __('save_pass') . "</button></div>";
+    echo "<div class='field mt-5'><button class='button is-primary is-fullwidth' type='submit'>" . __('save_settings') . "</button></div>";
     echo "</form>";
     echo "</div>";
 
@@ -2769,6 +2779,7 @@ function getTranslations() {
             'new_pass' => 'New Password',
             'confirm_pass' => 'Confirm Password',
             'save_pass' => 'Save Password',
+            'save_settings' => 'Save Settings',
             'must_change_pass' => 'You must change the default password.',
             'logout' => 'Logout',
             'hello' => 'Hello',
@@ -2903,6 +2914,7 @@ function getTranslations() {
             'new_pass' => 'Password Baru',
             'confirm_pass' => 'Konfirmasi Password',
             'save_pass' => 'Simpan Password',
+            'save_settings' => 'Simpan Pengaturan',
             'must_change_pass' => 'Anda harus mengganti password default.',
             'logout' => 'Keluar',
             'hello' => 'Halo',
