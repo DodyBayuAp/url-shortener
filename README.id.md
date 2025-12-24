@@ -108,9 +108,23 @@ Dirancang untuk kesederhanaan, kemudahan deployment, dan fungsionalitas yang rob
 | **Multi-Database** | ✅ (3 jenis) | ✅ (MySQL saja) | ✅ (MySQL saja) | ✅ (Multiple) |
 | **Analytics Built-in** | ✅ Advanced | ✅ Basic | ✅ Basic | ✅ Advanced |
 | **QR Code** | ✅ | ❌ | ❌ | ✅ |
+| **API Auth (JWT/PASETO)** | ✅ | ❌ | ❌ | 🟡 (JWT Saja) |
+| **Swagger UI Docs** | ✅ | ❌ | ❌ | ✅ |
 | **Kompleksitas Setup** | 🟢 Mudah | 🟡 Sedang | 🟡 Sedang | 🟡 Sedang |
 | **Dependencies** | Tidak ada | Banyak | Banyak | Banyak |
 | **Ukuran File** | ~80KB | ~5MB | ~10MB | ~20MB |
+
+### 🔒 Perbandingan Keamanan API
+
+| Fitur | Proyek Ini | Script PHP Standar |
+|-------|------------|--------------------|
+| **Autentikasi** | PASETO / JWT / API Key | Legacy API Key saja |
+| **Kedaluwarsa Token** | Dapat dikonfigurasi | Tidak terbatas |
+| **IP Whitelisting** | Built-in | Tidak ada |
+| **User-Agent Filter** | Built-in | Tidak ada |
+| **Dokumentasi** | Swagger Tergenerasi Otomatis | Manual / Tidak ada |
+| **Rate Limiting** | Dapat dikonfigurasi | Dasar / Tidak ada |
+
 
 **Sempurna untuk:**
 - 🏠 Self-hoster yang menginginkan kesederhanaan

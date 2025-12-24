@@ -13,6 +13,9 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 
 [Features](#-key-features) • [Demo](#-demo) • [Installation](#-installation--setup) • [Documentation](DOCUMENTATION.md) • [Contributing](CONTRIBUTING.md)
 
+*Read this in [Bahasa Indonesia](README.id.md).*
+
+
 </div>
 
 ---
@@ -106,9 +109,23 @@ Designed for simplicity, ease of deployment, and robust functionality without th
 | **Multi-Database** | ✅ (3 types) | ✅ (MySQL only) | ✅ (MySQL only) | ✅ (Multiple) |
 | **Built-in Analytics** | ✅ Advanced | ✅ Basic | ✅ Basic | ✅ Advanced |
 | **QR Codes** | ✅ | ❌ | ❌ | ✅ |
+| **API Auth (JWT/PASETO)** | ✅ | ❌ | ❌ | 🟡 (JWT Only) |
+| **Swagger UI Docs** | ✅ | ❌ | ❌ | ✅ |
 | **Setup Complexity** | 🟢 Easy | 🟡 Medium | 🟡 Medium | 🟡 Medium |
 | **Dependencies** | None | Many | Many | Many |
 | **File Size** | ~80KB | ~5MB | ~10MB | ~20MB |
+
+### 🔒 API Security Comparison
+
+| Feature | This Project | Standard PHP Scripts |
+|---------|--------------|----------------------|
+| **Authentication** | PASETO / JWT / API Key | Legacy API Key only |
+| **Token Expiry** | Configurable | Unlimited |
+| **IP Whitelisting** | Built-in | None |
+| **User-Agent Filter** | Built-in | None |
+| **Documentation** | Auto-generated Swagger | Manual / None |
+| **Rate Limiting** | Configurable | Basic / None |
+
 
 **Perfect for:**
 - 🏠 Self-hosters who want simplicity
